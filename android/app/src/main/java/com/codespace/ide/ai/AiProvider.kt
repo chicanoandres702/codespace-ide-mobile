@@ -23,7 +23,7 @@ sealed interface AiChunk {
 
 /**
  * Uniform interface every provider adapter implements. The app can call providers
- * directly (BYOK; key in Android Keystore) or via the backend proxy (`/ai/*`), which is
+ * directly (BYOK; key in Android Keystore) or via the backend proxy (`/ai/...`), which is
  * the same wire shape. Adding a provider = one new class registered in [AiRegistry].
  */
 interface AiProvider {

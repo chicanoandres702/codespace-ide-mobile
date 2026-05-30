@@ -5,14 +5,11 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
-  workflow_dispatch:   # lets you run it manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: android
 
     steps:
       - uses: actions/checkout@v4
@@ -26,14 +23,17 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Generate Gradle wrapper if missing
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.7"
+
+      - name: Generate Gradle wrapper
+        working-directory: android
         run: |
-          if [ ! -f ./gradlew ]; then
-            gradle wrapper --gradle-version 8.7
-          fi
+          gradle wrapper --gradle-version 8.7
           chmod +x ./gradlew
 
-      # Detect whether release signing secrets are available
       - name: Check for signing secrets
         id: signing
         env:
@@ -45,28 +45,19 @@ jobs:
             echo "release=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # ---- Path 1: signed RELEASE build (when secrets exist) ----
-      - name: Decode keystore
-        if: steps.signing.outputs.release == 'true'
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
-          echo "KEYSTORE_FILE=$PWD/release.keystore" >> "$GITHUB_ENV"
+      - name: Build debug APK
+        if: steps.signing.outputs.release == 'false'
+        working-directory: android
+        run: ./gradlew assembleProdDebug --stacktrace
 
       - name: Build signed release APK
         if: steps.signing.outputs.release == 'true'
+        working-directory: android
         env:
-          KEYSTORE_FILE: ${{ env.KEYSTORE_FILE }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleProdRelease --stacktrace
-
-      # ---- Path 2: installable DEBUG build (no secrets needed) ----
-      - name: Build debug APK
-        if: steps.signing.outputs.release == 'false'
-        run: ./gradlew assembleProdDebug --stacktrace
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -74,9 +65,3 @@ jobs:
           name: codespace-ide-apk
           path: android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
-
-      - name: Attach APK to release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: android/app/build/outputs/apk/**/*.apk
