@@ -1,0 +1,15 @@
+import { Controller, Get } from '@nestjs/common';
+
+@Controller()
+export class HealthController {
+  @Get('health')
+  health() {
+    return { status: 'ok', uptime: process.uptime() };
+  }
+
+  @Get('ready')
+  ready() {
+    // In production: check DB + Redis connectivity here.
+    return { status: 'ready' };
+  }
+}

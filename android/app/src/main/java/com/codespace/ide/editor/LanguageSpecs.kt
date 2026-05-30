@@ -1,0 +1,102 @@
+package com.codespace.ide.editor
+
+import com.codespace.ide.domain.Language
+
+data class LanguageSpec(
+    val keywords: Set<String>,
+    val types: Set<String>,
+    val lineComment: String?,
+    val blockCommentStart: String?,
+    val blockCommentEnd: String?,
+)
+
+/** Keyword/type tables for the built-in highlighter fallback. */
+object LanguageSpecs {
+
+    private val C_LIKE_COMMENTS = Triple("//", "/*", "*/")
+
+    private fun spec(
+        keywords: Set<String>,
+        types: Set<String> = emptySet(),
+        comments: Triple<String, String, String>? = C_LIKE_COMMENTS,
+    ) = LanguageSpec(keywords, types, comments?.first, comments?.second, comments?.third)
+
+    fun forLanguage(lang: Language): LanguageSpec = when (lang) {
+        Language.JAVASCRIPT, Language.TYPESCRIPT -> spec(
+            keywords = setOf(
+                "const", "let", "var", "function", "return", "if", "else", "for", "while",
+                "do", "switch", "case", "break", "continue", "class", "extends", "new",
+                "import", "export", "default", "from", "async", "await", "try", "catch",
+                "finally", "throw", "typeof", "instanceof", "this", "super", "yield",
+                "interface", "type", "enum", "implements", "public", "private", "readonly",
+                "static", "as", "in", "of", "null", "undefined", "true", "false", "void",
+            ),
+            types = setOf("string", "number", "boolean", "any", "unknown", "never", "object", "Promise", "Array"),
+        )
+        Language.PYTHON -> spec(
+            keywords = setOf(
+                "def", "class", "return", "if", "elif", "else", "for", "while", "break",
+                "continue", "import", "from", "as", "try", "except", "finally", "raise",
+                "with", "lambda", "yield", "global", "nonlocal", "pass", "and", "or", "not",
+                "is", "in", "None", "True", "False", "async", "await", "self",
+            ),
+            types = setOf("int", "str", "float", "bool", "list", "dict", "set", "tuple", "bytes"),
+            comments = Triple("#", null.toString(), ""),
+        ).copy(blockCommentStart = null, blockCommentEnd = null)
+        Language.JAVA -> spec(
+            keywords = setOf(
+                "public", "private", "protected", "class", "interface", "extends",
+                "implements", "static", "final", "void", "return", "if", "else", "for",
+                "while", "do", "switch", "case", "break", "continue", "new", "import",
+                "package", "try", "catch", "finally", "throw", "throws", "this", "super",
+                "abstract", "enum", "instanceof", "null", "true", "false",
+            ),
+            types = setOf("int", "long", "double", "float", "boolean", "char", "byte", "short", "String"),
+        )
+        Language.CPP -> spec(
+            keywords = setOf(
+                "int", "char", "float", "double", "void", "bool", "long", "short", "unsigned",
+                "signed", "const", "static", "return", "if", "else", "for", "while", "do",
+                "switch", "case", "break", "continue", "struct", "class", "public", "private",
+                "protected", "namespace", "using", "template", "typename", "new", "delete",
+                "nullptr", "true", "false", "auto", "include", "define",
+            ),
+        )
+        Language.GO -> spec(
+            keywords = setOf(
+                "func", "package", "import", "var", "const", "type", "struct", "interface",
+                "return", "if", "else", "for", "range", "switch", "case", "break", "continue",
+                "go", "defer", "chan", "select", "map", "nil", "true", "false", "make", "new",
+            ),
+            types = setOf("int", "int64", "string", "bool", "float64", "byte", "rune", "error"),
+        )
+        Language.RUST -> spec(
+            keywords = setOf(
+                "fn", "let", "mut", "const", "struct", "enum", "impl", "trait", "pub", "use",
+                "mod", "return", "if", "else", "for", "while", "loop", "match", "break",
+                "continue", "self", "Self", "async", "await", "move", "ref", "where", "as",
+                "true", "false", "Some", "None", "Ok", "Err",
+            ),
+            types = setOf("i32", "i64", "u32", "u64", "usize", "f64", "bool", "str", "String", "Vec", "Option", "Result"),
+        )
+        Language.PHP -> spec(
+            keywords = setOf(
+                "function", "class", "public", "private", "protected", "static", "return",
+                "if", "else", "elseif", "for", "foreach", "while", "do", "switch", "case",
+                "break", "continue", "new", "echo", "print", "use", "namespace", "try",
+                "catch", "finally", "throw", "extends", "implements", "interface", "trait",
+                "this", "null", "true", "false", "const", "var", "as",
+            ),
+        )
+        Language.HTML -> spec(keywords = emptySet(), comments = Triple("", "<!--", "-->"))
+            .copy(lineComment = null)
+        Language.CSS -> spec(keywords = emptySet(), comments = Triple("", "/*", "*/"))
+            .copy(lineComment = null)
+        Language.JSON -> spec(
+            keywords = setOf("true", "false", "null"),
+            comments = null,
+        )
+        Language.MARKDOWN -> spec(keywords = emptySet(), comments = null)
+        Language.PLAIN -> spec(keywords = emptySet(), comments = null)
+    }
+}

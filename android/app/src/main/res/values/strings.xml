@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">CodeSpace IDE</string>
+    <string name="tab_explorer">Explorer</string>
+    <string name="tab_editor">Editor</string>
+    <string name="tab_terminal">Terminal</string>
+    <string name="tab_scm">Source Control</string>
+    <string name="tab_ai">AI</string>
+    <string name="action_commit">Commit</string>
+    <string name="action_push">Push</string>
+    <string name="action_pull">Pull</string>
+</resources>
