@@ -1,17 +1,16 @@
 package com.codespace.ide.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Code
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -23,53 +22,95 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun AuthScreen(onAuthenticated: () -> Unit) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    var token by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            Icons.Default.Code,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-            tint = MaterialTheme.colorScheme.primary,
+        Text(
+            "CodeSpace IDE",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
         )
-        Spacer(Modifier.height(12.dp))
-        Text("CodeSpace IDE", style = MaterialTheme.typography.headlineMedium)
-        Text("Code from anywhere", style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(32.dp))
+        Text(
+            "Mobile IDE for Android",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(48.dp))
 
+        // GitHub token input
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Password") },
-            singleLine = true,
+            value = token,
+            onValueChange = { token = it; error = "" },
+            label = { Text("GitHub Personal Access Token") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            isError = error.isNotEmpty(),
+            supportingText = if (error.isNotEmpty()) {
+                { Text(error, color = MaterialTheme.colorScheme.error) }
+            } else null,
         )
-        Spacer(Modifier.height(20.dp))
-        Button(onClick = onAuthenticated, modifier = Modifier.fillMaxWidth()) {
-            Text("Sign in")
+
+        Spacer(Modifier.height(8.dp))
+
+        // Sign in with token
+        Button(
+            onClick = {
+                if (token.isBlank()) {
+                    error = "Please enter your GitHub token"
+                } else {
+                    loading = true
+                    onAuthenticated()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !loading,
+        ) {
+            if (loading) CircularProgressIndicator()
+            else Text("Sign In")
         }
-        Spacer(Modifier.height(12.dp))
-        OutlinedButton(onClick = onAuthenticated, modifier = Modifier.fillMaxWidth()) {
-            Text("Continue with GitHub")
+
+        Spacer(Modifier.height(16.dp))
+
+        // Get token button
+        OutlinedButton(
+            onClick = {
+                val intent = Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("https://github.com/settings/tokens/new?scopes=repo,read:user&description=CodeSpaceIDE")
+                )
+                context.startActivity(intent)
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Get GitHub Token")
         }
+
+        Spacer(Modifier.height(24.dp))
+
+        Text(
+            "Tap 'Get GitHub Token' to open GitHub in your browser.\nCreate a token with 'repo' and 'read:user' scopes, then paste it above.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }
