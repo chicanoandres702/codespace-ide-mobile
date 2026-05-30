@@ -9,12 +9,12 @@ import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.codespace.ide.data.SecureTokenStore
 import com.codespace.ide.ui.screens.AuthScreen
 import com.codespace.ide.ui.screens.HomeScreen
 import com.codespace.ide.ui.screens.ProjectShellScreen
 import com.codespace.ide.ui.screens.SettingsScreen
 
-/** Top-level routes. */
 object Routes {
     const val AUTH = "auth"
     const val HOME = "home"
@@ -24,8 +24,7 @@ object Routes {
 }
 
 @Composable
-fun CodeSpaceApp() {
-    // Theme toggle is persisted via DataStore in the real app; mirrored here for preview.
+fun CodeSpaceApp(tokenStore: SecureTokenStore) {
     var darkOverride by remember { mutableStateOf<Boolean?>(null) }
     val dark = darkOverride ?: isSystemInDarkTheme()
 
@@ -59,6 +58,7 @@ fun CodeSpaceApp() {
                     isDark = dark,
                     onToggleTheme = { darkOverride = !dark },
                     onBack = { nav.popBackStack() },
+                    tokenStore = tokenStore,
                 )
             }
         }
