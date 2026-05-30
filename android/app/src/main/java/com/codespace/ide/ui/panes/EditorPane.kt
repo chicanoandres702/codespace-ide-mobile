@@ -9,10 +9,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.SplitscreenVertical
+import androidx.compose.material.icons.filled.VerticalSplit
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -76,7 +77,7 @@ fun EditorPane() {
                 }
             }
             IconButton(onClick = { splitId = if (splitId == null) activeId else null }) {
-                Icon(Icons.Default.SplitscreenVertical, contentDescription = "Split")
+                Icon(Icons.Default.VerticalSplit, contentDescription = "Split")
             }
         }
         HorizontalDivider()
