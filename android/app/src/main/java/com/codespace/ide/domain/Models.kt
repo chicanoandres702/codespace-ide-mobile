@@ -1,6 +1,5 @@
 package com.codespace.ide.domain
 
-/** Result wrapper used across all layers — no exceptions cross boundaries. */
 sealed interface AppResult<out T> {
     data class Success<T>(val data: T) : AppResult<T>
     data class Failure(val error: AppError) : AppResult<Nothing>
@@ -48,7 +47,6 @@ data class EditorTab(
     val cursorOffset: Int = 0,
 )
 
-/** Git status of a working tree. */
 data class GitStatus(
     val branch: String,
     val ahead: Int,
@@ -58,7 +56,6 @@ data class GitStatus(
     val untracked: List<String>,
 )
 
-/** AI providers supported. */
 enum class AiProviderId(val displayName: String) {
     OPENAI("OpenAI"),
     CLAUDE("Claude"),
