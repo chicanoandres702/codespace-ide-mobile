@@ -53,6 +53,7 @@ fun CodeSpaceApp(tokenStore: SecureTokenStore) {
                     isDark = dark,
                     onToggleTheme = { darkOverride = !dark },
                     onBack = { nav.popBackStack() },
+                    tokenStore = tokenStore,
                 )
             }
             composable(Routes.SETTINGS) {

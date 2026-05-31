@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.codespace.ide.data.SecureTokenStore
 import com.codespace.ide.ui.panes.AiAssistantPane
 import com.codespace.ide.ui.panes.EditorPane
 import com.codespace.ide.ui.panes.ExplorerPane
@@ -48,6 +49,7 @@ fun ProjectShellScreen(
     isDark: Boolean,
     onToggleTheme: () -> Unit,
     onBack: () -> Unit,
+    tokenStore: SecureTokenStore,
 ) {
     var current by remember { mutableStateOf(Pane.EDITOR) }
 
@@ -89,7 +91,7 @@ fun ProjectShellScreen(
                 Pane.EDITOR -> EditorPane()
                 Pane.TERMINAL -> TerminalPane()
                 Pane.SCM -> SourceControlPane()
-                Pane.AI -> AiAssistantPane()
+                Pane.AI -> AiAssistantPane(tokenStore = tokenStore)
             }
         }
     }
