@@ -27,12 +27,14 @@ object Routes {
 fun CodeSpaceApp(tokenStore: SecureTokenStore) {
     var darkOverride by remember { mutableStateOf<Boolean?>(null) }
     val dark = darkOverride ?: isSystemInDarkTheme()
+    val startDest = if (tokenStore.refreshToken != null) Routes.HOME else Routes.AUTH
 
     CodeSpaceTheme(darkTheme = dark) {
         val nav = rememberNavController()
-        NavHost(navController = nav, startDestination = Routes.AUTH) {
+        NavHost(navController = nav, startDestination = startDest) {
             composable(Routes.AUTH) {
-                AuthScreen(onAuthenticated = {
+                AuthScreen(onAuthenticated = { token ->
+                    tokenStore.refreshToken = token
                     nav.navigate(Routes.HOME) {
                         popUpTo(Routes.AUTH) { inclusive = true }
                     }
