@@ -79,7 +79,7 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
         val saved = loadHistory(context)
         mutableStateListOf<ChatMessage>().apply {
             if (saved.isEmpty()) {
-                add(ChatMessage("assistant", "Hi! I can explain, refactor, fix, document, or test your code. Ask me anything!"))
+                add(ChatMessage("assistant", "Hi! Ask me anything about your code!"))
             } else {
                 addAll(saved)
             }
@@ -95,11 +95,20 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
         input = ""
 
         try {
-            val activeProvider = tokenStore.aiKey("active") ?: "OPENROUTER"
-            val apiKey = tokenStore.aiKey(activeProvider) ?: tokenStore.aiKey(activeProvider.uppercase()) ?: ""
+            val providerList = listOf("OPENROUTER","OPENAI","CLAUDE","GEMINI","DEEPSEEK","OLLAMA")
+            var apiKey = ""
+            var activeProvider = "OPENROUTER"
+            for (p in providerList) {
+                val k = tokenStore.aiKey(p)
+                if (!k.isNullOrBlank()) {
+                    apiKey = k
+                    activeProvider = p
+                    break
+                }
+            }
 
             if (apiKey.isBlank()) {
-                messages.add(ChatMessage("assistant", "⚠️ No API key found. Please go to Settings and add your API key."))
+                messages.add(ChatMessage("assistant", "⚠️ No API key found. Go to Settings → enter your OpenRouter key → tap Save API Keys."))
                 saveHistory(context, messages)
                 loading = false
                 return
@@ -113,13 +122,6 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
                 else -> "meta-llama/llama-3.1-8b-instruct:free"
             }
 
-            val baseUrl = when (activeProvider) {
-                "CLAUDE" -> "https://api.anthropic.com/v1/messages"
-                "GEMINI" -> "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
-                "OPENROUTER" -> "https://openrouter.ai/api/v1/chat/completions"
-                else -> "https://api.openai.com/v1/chat/completions"
-            }
-
             val messagesJson = JSONArray()
             messages.filter { it.role == "user" || messages.indexOf(it) > 0 }.forEach { m ->
                 messagesJson.put(JSONObject().put("role", m.role).put("content", m.content))
@@ -131,20 +133,26 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
                 .toString()
 
             val reqBuilder = Request.Builder()
-                .url(baseUrl)
                 .header("Content-Type", "application/json")
 
             when (activeProvider) {
                 "CLAUDE" -> {
+                    reqBuilder.url("https://api.anthropic.com/v1/messages")
                     reqBuilder.header("x-api-key", apiKey)
                     reqBuilder.header("anthropic-version", "2023-06-01")
                 }
-                "GEMINI" -> {}
-                "OPENROUTER" -> {
-                    reqBuilder.header("Authorization", "Bearer $apiKey")
-                    reqBuilder.header("HTTP-Referer", "https://codespace-ide.app")
+                "GEMINI" -> {
+                    reqBuilder.url("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey")
                 }
-                else -> reqBuilder.header("Authorization", "Bearer $apiKey")
+                else -> {
+                    val url = if (activeProvider == "OPENROUTER")
+                        "https://openrouter.ai/api/v1/chat/completions"
+                    else "https://api.openai.com/v1/chat/completions"
+                    reqBuilder.url(url)
+                    reqBuilder.header("Authorization", "Bearer $apiKey")
+                    if (activeProvider == "OPENROUTER")
+                        reqBuilder.header("HTTP-Referer", "https://codespace-ide.app")
+                }
             }
 
             reqBuilder.post(body.toRequestBody("application/json".toMediaType()))
@@ -153,7 +161,9 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
                 OkHttpClient().newCall(reqBuilder.build()).execute()
             }
 
-            val json = JSONObject(response.body?.string() ?: "")
+            val responseBody = response.body?.string() ?: ""
+            val json = JSONObject(responseBody)
+
             val content = when (activeProvider) {
                 "CLAUDE" -> json.getJSONArray("content").getJSONObject(0).getString("text")
                 "GEMINI" -> json.getJSONArray("candidates")
