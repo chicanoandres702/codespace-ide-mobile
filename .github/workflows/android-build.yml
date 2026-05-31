@@ -23,12 +23,6 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: "8.7"
-          cache-disabled: true
-
       - name: Generate Gradle wrapper
         working-directory: android
         run: |
@@ -49,7 +43,7 @@ jobs:
       - name: Build debug APK
         if: steps.signing.outputs.release == 'false'
         working-directory: android
-        run: ./gradlew assembleProdDebug --stacktrace --rerun-tasks
+        run: ./gradlew assembleProdDebug --stacktrace --no-build-cache
 
       - name: Build signed release APK
         if: steps.signing.outputs.release == 'true'
@@ -58,7 +52,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleProdRelease --stacktrace --rerun-tasks
+        run: ./gradlew assembleProdRelease --stacktrace --no-build-cache
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
