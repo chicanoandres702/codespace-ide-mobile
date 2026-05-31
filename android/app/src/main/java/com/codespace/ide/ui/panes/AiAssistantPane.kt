@@ -119,7 +119,7 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
                 "OPENAI" -> "gpt-4o-mini"
                 "GEMINI" -> "gemini-1.5-flash"
                 "DEEPSEEK" -> "deepseek-chat"
-                else -> "meta-llama/llama-3.1-8b-instruct:free"
+                else -> "mistralai/mistral-7b-instruct:free"
             }
 
             val messagesJson = JSONArray()
