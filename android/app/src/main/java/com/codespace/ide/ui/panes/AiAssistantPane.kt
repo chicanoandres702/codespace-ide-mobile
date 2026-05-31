@@ -164,7 +164,9 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
             val responseBody = response.body?.string() ?: ""
             val json = JSONObject(responseBody)
 
-            val content = when (activeProvider) {
+            val errorMsg = json.optJSONObject("error")?.optString("message")
+if (errorMsg != null) { messages.add(ChatMessage("assistant", "❌ OpenRouter error: $errorMsg")); saveHistory(context, messages); loading = false; return }
+val content = when (activeProvider) {
                 "CLAUDE" -> json.getJSONArray("content").getJSONObject(0).getString("text")
                 "GEMINI" -> json.getJSONArray("candidates")
                     .getJSONObject(0).getJSONObject("content")
