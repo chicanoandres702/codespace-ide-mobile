@@ -149,7 +149,7 @@ fun ProjectShellScreen(
                     // Panel title
                     Text(
                         activityItems.first { it.panel == activePanel }.label.uppercase(),
-                        color = Color(0xFF BBBBBB),
+                        color = Color(0xFFBBBBBB),
                         fontSize = 11.sp,
                         letterSpacing = 1.sp,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
