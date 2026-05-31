@@ -2,21 +2,16 @@ package com.codespace.ide.ai
 
 import com.codespace.ide.domain.AiChunk
 import com.codespace.ide.domain.AiContext
-import com.codespace.ide.domain.AiChunk
-import com.codespace.ide.domain.AiContext
 import com.codespace.ide.domain.AiProviderId
-import com.codespace.ide.domain.ChatMessage
 import com.codespace.ide.domain.ChatMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
 
 data class ProviderConfig(val apiKey: String, val baseUrl: String = "")
 
@@ -28,20 +23,26 @@ private fun openAiStyleChat(
     client: OkHttpClient,
     extraHeaders: Map<String, String> = emptyMap(),
 ): Flow<AiChunk> = flow {
-    val body = buildString {
-        append("{\"model\":\"$model\",\"messages\":[")
-        messages.forEachIndexed { i, m ->
-            if (i > 0) append(",")
-            append("{\"role\":\"${m.role}\",\"content\":\"${m.content.replace("\"", "\\\"")}\"}")
+    val messagesJson = JSONArray().apply {
+        messages.forEach { m ->
+            put(JSONObject().apply {
+                put("role", m.role)
+                put("content", m.content)
+            })
         }
-        append("]}")
     }
+    val body = JSONObject().apply {
+        put("model", model)
+        put("messages", messagesJson)
+    }.toString()
+
     val reqBuilder = Request.Builder()
         .url(baseUrl)
         .header("Authorization", "Bearer $apiKey")
         .header("Content-Type", "application/json")
     extraHeaders.forEach { (k, v) -> reqBuilder.header(k, v) }
     reqBuilder.post(body.toRequestBody("application/json".toMediaType()))
+
     try {
         val response = client.newCall(reqBuilder.build()).execute()
         if (!response.isSuccessful) {
@@ -49,11 +50,11 @@ private fun openAiStyleChat(
             return@flow
         }
         val text = response.body?.string() ?: ""
-        val json = Json.parseToJsonElement(text).jsonObject
-        val content = json["choices"]?.jsonArray
-            ?.firstOrNull()?.jsonObject
-            ?.get("message")?.jsonObject
-            ?.get("content")?.jsonPrimitive?.content ?: ""
+        val json = JSONObject(text)
+        val content = json.getJSONArray("choices")
+            .getJSONObject(0)
+            .getJSONObject("message")
+            .getString("content")
         emit(AiChunk.Token(content))
         emit(AiChunk.Done(0, 0))
     } catch (e: Exception) {
@@ -72,14 +73,19 @@ class ClaudeProvider(private val config: ProviderConfig, private val client: OkH
     override val id = AiProviderId.CLAUDE
     override val models = listOf("claude-sonnet-4-6", "claude-haiku-4-5-20251001")
     override fun chat(model: String, messages: List<ChatMessage>, context: AiContext): Flow<AiChunk> = flow {
-        val body = buildString {
-            append("{\"model\":\"$model\",\"max_tokens\":1024,\"messages\":[")
-            messages.forEachIndexed { i, m ->
-                if (i > 0) append(",")
-                append("{\"role\":\"${m.role}\",\"content\":\"${m.content.replace("\"", "\\\"")}\"}")
+        val messagesJson = JSONArray().apply {
+            messages.forEach { m ->
+                put(JSONObject().apply {
+                    put("role", m.role)
+                    put("content", m.content)
+                })
             }
-            append("]}")
         }
+        val body = JSONObject().apply {
+            put("model", model)
+            put("max_tokens", 1024)
+            put("messages", messagesJson)
+        }.toString()
         try {
             val request = Request.Builder()
                 .url("https://api.anthropic.com/v1/messages")
@@ -94,10 +100,10 @@ class ClaudeProvider(private val config: ProviderConfig, private val client: OkH
                 return@flow
             }
             val text = response.body?.string() ?: ""
-            val json = Json.parseToJsonElement(text).jsonObject
-            val content = json["content"]?.jsonArray
-                ?.firstOrNull()?.jsonObject
-                ?.get("text")?.jsonPrimitive?.content ?: ""
+            val json = JSONObject(text)
+            val content = json.getJSONArray("content")
+                .getJSONObject(0)
+                .getString("text")
             emit(AiChunk.Token(content))
             emit(AiChunk.Done(0, 0))
         } catch (e: Exception) {
@@ -110,14 +116,15 @@ class GeminiProvider(private val config: ProviderConfig, private val client: OkH
     override val id = AiProviderId.GEMINI
     override val models = listOf("gemini-1.5-flash", "gemini-1.5-pro")
     override fun chat(model: String, messages: List<ChatMessage>, context: AiContext): Flow<AiChunk> = flow {
-        val body = buildString {
-            append("{\"contents\":[")
-            messages.forEachIndexed { i, m ->
-                if (i > 0) append(",")
-                append("{\"role\":\"${if (m.role == "assistant") "model" else "user"}\",\"parts\":[{\"text\":\"${m.content.replace("\"", "\\\"")}\"}]}")
+        val contentsJson = JSONArray().apply {
+            messages.forEach { m ->
+                put(JSONObject().apply {
+                    put("role", if (m.role == "assistant") "model" else "user")
+                    put("parts", JSONArray().put(JSONObject().put("text", m.content)))
+                })
             }
-            append("]}")
         }
+        val body = JSONObject().put("contents", contentsJson).toString()
         try {
             val request = Request.Builder()
                 .url("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=${config.apiKey}")
@@ -130,13 +137,13 @@ class GeminiProvider(private val config: ProviderConfig, private val client: OkH
                 return@flow
             }
             val text = response.body?.string() ?: ""
-            val json = Json.parseToJsonElement(text).jsonObject
-            val content = json["candidates"]?.jsonArray
-                ?.firstOrNull()?.jsonObject
-                ?.get("content")?.jsonObject
-                ?.get("parts")?.jsonArray
-                ?.firstOrNull()?.jsonObject
-                ?.get("text")?.jsonPrimitive?.content ?: ""
+            val json = JSONObject(text)
+            val content = json.getJSONArray("candidates")
+                .getJSONObject(0)
+                .getJSONObject("content")
+                .getJSONArray("parts")
+                .getJSONObject(0)
+                .getString("text")
             emit(AiChunk.Token(content))
             emit(AiChunk.Done(0, 0))
         } catch (e: Exception) {
