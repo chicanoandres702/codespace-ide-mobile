@@ -23,38 +23,29 @@ private fun openAiStyleChat(
     client: OkHttpClient,
     extraHeaders: Map<String, String> = emptyMap(),
 ): Flow<AiChunk> = flow {
-    val messagesJson = JSONArray().apply {
-        messages.forEach { m ->
-            put(JSONObject().apply {
-                put("role", m.role)
-                put("content", m.content)
-            })
-        }
+    val messagesJson = JSONArray()
+    for (m in messages) {
+        messagesJson.put(JSONObject().put("role", m.role).put("content", m.content))
     }
-    val body = JSONObject().apply {
-        put("model", model)
-        put("messages", messagesJson)
-    }.toString()
-
+    val body = JSONObject()
+        .put("model", model)
+        .put("messages", messagesJson)
+        .toString()
     val reqBuilder = Request.Builder()
         .url(baseUrl)
         .header("Authorization", "Bearer $apiKey")
         .header("Content-Type", "application/json")
-    extraHeaders.forEach { (k, v) -> reqBuilder.header(k, v) }
+    for ((k, v) in extraHeaders) reqBuilder.header(k, v)
     reqBuilder.post(body.toRequestBody("application/json".toMediaType()))
-
     try {
         val response = client.newCall(reqBuilder.build()).execute()
         if (!response.isSuccessful) {
-            emit(AiChunk.Error("HTTP ${response.code}: ${response.message}"))
+            emit(AiChunk.Error("HTTP ${response.code}"))
             return@flow
         }
-        val text = response.body?.string() ?: ""
-        val json = JSONObject(text)
+        val json = JSONObject(response.body?.string() ?: "")
         val content = json.getJSONArray("choices")
-            .getJSONObject(0)
-            .getJSONObject("message")
-            .getString("content")
+            .getJSONObject(0).getJSONObject("message").getString("content")
         emit(AiChunk.Token(content))
         emit(AiChunk.Done(0, 0))
     } catch (e: Exception) {
@@ -64,28 +55,24 @@ private fun openAiStyleChat(
 
 class OpenAiProvider(private val config: ProviderConfig, private val client: OkHttpClient) : AiProvider {
     override val id = AiProviderId.OPENAI
-    override val models = listOf("gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo")
-    override fun chat(model: String, messages: List<ChatMessage>, context: AiContext) =
+    override val models = listOf("gpt-4o", "gpt-4o-mini")
+    override fun chat(model: String, messages: List<ChatMessage>, context: AiContext): Flow<AiChunk> =
         openAiStyleChat(messages, "https://api.openai.com/v1/chat/completions", model, config.apiKey, client)
 }
 
 class ClaudeProvider(private val config: ProviderConfig, private val client: OkHttpClient) : AiProvider {
     override val id = AiProviderId.CLAUDE
-    override val models = listOf("claude-sonnet-4-6", "claude-haiku-4-5-20251001")
+    override val models = listOf("claude-sonnet-4-6")
     override fun chat(model: String, messages: List<ChatMessage>, context: AiContext): Flow<AiChunk> = flow {
-        val messagesJson = JSONArray().apply {
-            messages.forEach { m ->
-                put(JSONObject().apply {
-                    put("role", m.role)
-                    put("content", m.content)
-                })
-            }
+        val messagesJson = JSONArray()
+        for (m in messages) {
+            messagesJson.put(JSONObject().put("role", m.role).put("content", m.content))
         }
-        val body = JSONObject().apply {
-            put("model", model)
-            put("max_tokens", 1024)
-            put("messages", messagesJson)
-        }.toString()
+        val body = JSONObject()
+            .put("model", model)
+            .put("max_tokens", 1024)
+            .put("messages", messagesJson)
+            .toString()
         try {
             val request = Request.Builder()
                 .url("https://api.anthropic.com/v1/messages")
@@ -95,20 +82,12 @@ class ClaudeProvider(private val config: ProviderConfig, private val client: OkH
                 .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
             val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                emit(AiChunk.Error("HTTP ${response.code}"))
-                return@flow
-            }
-            val text = response.body?.string() ?: ""
-            val json = JSONObject(text)
-            val content = json.getJSONArray("content")
-                .getJSONObject(0)
-                .getString("text")
+            if (!response.isSuccessful) { emit(AiChunk.Error("HTTP ${response.code}")); return@flow }
+            val json = JSONObject(response.body?.string() ?: "")
+            val content = json.getJSONArray("content").getJSONObject(0).getString("text")
             emit(AiChunk.Token(content))
             emit(AiChunk.Done(0, 0))
-        } catch (e: Exception) {
-            emit(AiChunk.Error(e.message ?: "Unknown error"))
-        }
+        } catch (e: Exception) { emit(AiChunk.Error(e.message ?: "Unknown error")) }
     }
 }
 
@@ -116,13 +95,13 @@ class GeminiProvider(private val config: ProviderConfig, private val client: OkH
     override val id = AiProviderId.GEMINI
     override val models = listOf("gemini-1.5-flash", "gemini-1.5-pro")
     override fun chat(model: String, messages: List<ChatMessage>, context: AiContext): Flow<AiChunk> = flow {
-        val contentsJson = JSONArray().apply {
-            messages.forEach { m ->
-                put(JSONObject().apply {
-                    put("role", if (m.role == "assistant") "model" else "user")
-                    put("parts", JSONArray().put(JSONObject().put("text", m.content)))
-                })
-            }
+        val contentsJson = JSONArray()
+        for (m in messages) {
+            contentsJson.put(
+                JSONObject()
+                    .put("role", if (m.role == "assistant") "model" else "user")
+                    .put("parts", JSONArray().put(JSONObject().put("text", m.content)))
+            )
         }
         val body = JSONObject().put("contents", contentsJson).toString()
         try {
@@ -132,37 +111,28 @@ class GeminiProvider(private val config: ProviderConfig, private val client: OkH
                 .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
             val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                emit(AiChunk.Error("HTTP ${response.code}"))
-                return@flow
-            }
-            val text = response.body?.string() ?: ""
-            val json = JSONObject(text)
+            if (!response.isSuccessful) { emit(AiChunk.Error("HTTP ${response.code}")); return@flow }
+            val json = JSONObject(response.body?.string() ?: "")
             val content = json.getJSONArray("candidates")
-                .getJSONObject(0)
-                .getJSONObject("content")
-                .getJSONArray("parts")
-                .getJSONObject(0)
-                .getString("text")
+                .getJSONObject(0).getJSONObject("content")
+                .getJSONArray("parts").getJSONObject(0).getString("text")
             emit(AiChunk.Token(content))
             emit(AiChunk.Done(0, 0))
-        } catch (e: Exception) {
-            emit(AiChunk.Error(e.message ?: "Unknown error"))
-        }
+        } catch (e: Exception) { emit(AiChunk.Error(e.message ?: "Unknown error")) }
     }
 }
 
 class DeepSeekProvider(private val config: ProviderConfig, private val client: OkHttpClient) : AiProvider {
     override val id = AiProviderId.DEEPSEEK
     override val models = listOf("deepseek-chat", "deepseek-coder")
-    override fun chat(model: String, messages: List<ChatMessage>, context: AiContext) =
+    override fun chat(model: String, messages: List<ChatMessage>, context: AiContext): Flow<AiChunk> =
         openAiStyleChat(messages, "https://api.deepseek.com/chat/completions", model, config.apiKey, client)
 }
 
 class OllamaProvider(private val config: ProviderConfig, private val client: OkHttpClient) : AiProvider {
     override val id = AiProviderId.OLLAMA
     override val models = listOf("llama3", "mistral", "codellama")
-    override fun chat(model: String, messages: List<ChatMessage>, context: AiContext) =
+    override fun chat(model: String, messages: List<ChatMessage>, context: AiContext): Flow<AiChunk> =
         openAiStyleChat(messages, "${config.baseUrl}/api/chat", model, config.apiKey, client)
 }
 
@@ -175,7 +145,7 @@ class OpenRouterProvider(private val config: ProviderConfig, private val client:
         "deepseek/deepseek-chat",
         "meta-llama/llama-3.1-8b-instruct:free",
     )
-    override fun chat(model: String, messages: List<ChatMessage>, context: AiContext) =
+    override fun chat(model: String, messages: List<ChatMessage>, context: AiContext): Flow<AiChunk> =
         openAiStyleChat(
             messages,
             "https://openrouter.ai/api/v1/chat/completions",
