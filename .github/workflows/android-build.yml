@@ -27,6 +27,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.7"
+          cache-disabled: true
 
       - name: Generate Gradle wrapper
         working-directory: android
@@ -48,7 +49,7 @@ jobs:
       - name: Build debug APK
         if: steps.signing.outputs.release == 'false'
         working-directory: android
-        run: ./gradlew assembleProdDebug --stacktrace
+        run: ./gradlew assembleProdDebug --stacktrace --rerun-tasks
 
       - name: Build signed release APK
         if: steps.signing.outputs.release == 'true'
@@ -57,7 +58,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleProdRelease --stacktrace
+        run: ./gradlew assembleProdRelease --stacktrace --rerun-tasks
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
