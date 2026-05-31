@@ -16,30 +16,78 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.File
+import java.io.InputStreamReader
 
-/**
- * Source control pane: branch, change list, commit box, and push/pull/PR actions.
- * Wires to [com.codespace.ide.git.GitEngine] for on-device Git and the backend
- * GithubModule for pull requests.
- */
+private fun runGit(dir: File, vararg args: String): String {
+    return try {
+        val process = ProcessBuilder("git", *args)
+            .directory(dir)
+            .redirectErrorStream(true)
+            .start()
+        val reader = BufferedReader(InputStreamReader(process.inputStream))
+        val output = reader.readText()
+        process.waitFor()
+        output.trim()
+    } catch (e: Exception) {
+        "Error: ${e.message}"
+    }
+}
+
 @Composable
 fun SourceControlPane() {
     var message by remember { mutableStateOf("") }
-    val changes = listOf(
-        "M  src/index.ts",
-        "M  src/utils.ts",
-        "A  src/components/App.tsx",
-        "?? notes.md",
-    )
+    var status by remember { mutableStateOf("Tap 'Refresh' to load git status") }
+    var branch by remember { mutableStateOf("unknown") }
+    val changes = remember { mutableStateListOf<String>() }
+    var loading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val repoDir = File("/storage/emulated/0/codespace-ide-mobile")
+
+    fun refresh() {
+        scope.launch {
+            loading = true
+            val branchResult = withContext(Dispatchers.IO) {
+                runGit(repoDir, "branch", "--show-current")
+            }
+            val statusResult = withContext(Dispatchers.IO) {
+                runGit(repoDir, "status", "--short")
+            }
+            branch = branchResult.ifBlank { "unknown" }
+            changes.clear()
+            if (statusResult.isNotBlank()) {
+                changes.addAll(statusResult.lines().filter { it.isNotBlank() })
+                status = "${changes.size} changes"
+            } else {
+                status = "Nothing to commit"
+            }
+            loading = false
+        }
+    }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Branch: main", style = MaterialTheme.typography.titleMedium)
-        Text("↑0 ↓0 • 4 changes", style = MaterialTheme.typography.bodySmall)
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column {
+                Text("Branch: $branch", style = MaterialTheme.typography.titleMedium)
+                Text(status, style = MaterialTheme.typography.bodySmall)
+            }
+            OutlinedButton(onClick = { refresh() }) { Text("Refresh") }
+        }
+
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
         OutlinedTextField(
@@ -48,22 +96,63 @@ fun SourceControlPane() {
             label = { Text("Commit message") },
             modifier = Modifier.fillMaxWidth(),
         )
+
         Row(
             Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Button(onClick = { }, modifier = Modifier.weight(1f)) { Text("Commit") }
-            OutlinedButton(onClick = { }, modifier = Modifier.weight(1f)) { Text("Push") }
-            OutlinedButton(onClick = { }, modifier = Modifier.weight(1f)) { Text("Pull") }
+            Button(
+                onClick = {
+                    if (message.isNotBlank()) {
+                        scope.launch {
+                            withContext(Dispatchers.IO) {
+                                runGit(repoDir, "add", ".")
+                                runGit(repoDir, "commit", "-m", message)
+                            }
+                            message = ""
+                            refresh()
+                        }
+                    }
+                },
+                modifier = Modifier.weight(1f),
+            ) { Text("Commit") }
+
+            OutlinedButton(
+                onClick = {
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            runGit(repoDir, "push")
+                        }
+                        refresh()
+                    }
+                },
+                modifier = Modifier.weight(1f),
+            ) { Text("Push") }
+
+            OutlinedButton(
+                onClick = {
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            runGit(repoDir, "pull")
+                        }
+                        refresh()
+                    }
+                },
+                modifier = Modifier.weight(1f),
+            ) { Text("Pull") }
         }
-        OutlinedButton(onClick = { }, modifier = Modifier.fillMaxWidth()) {
-            Text("Create Pull Request")
-        }
+
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
         Text("Changes", style = MaterialTheme.typography.titleSmall)
+
+        if (changes.isEmpty()) {
+            Text("No changes", Modifier.padding(8.dp))
+        }
+
         LazyColumn(Modifier.fillMaxSize()) {
             items(changes) { change ->
                 Text(change, Modifier.fillMaxWidth().padding(vertical = 6.dp))
+                HorizontalDivider()
             }
         }
     }
