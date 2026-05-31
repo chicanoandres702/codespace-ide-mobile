@@ -142,7 +142,7 @@ fun ProjectShellScreen(
             if (showPanel && activePanel != Panel.NONE) {
                 Column(
                     Modifier
-                        .width(260.dp)
+                        .fillMaxWidth(0.65f)
                         .fillMaxHeight()
                         .background(VsCodeSidebar)
                 ) {
