@@ -96,7 +96,7 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
 
         try {
             val activeProvider = tokenStore.aiKey("active") ?: "OPENROUTER"
-            val apiKey = tokenStore.aiKey(activeProvider) ?: ""
+            val apiKey = tokenStore.aiKey(activeProvider) ?: tokenStore.aiKey(activeProvider.uppercase()) ?: ""
 
             if (apiKey.isBlank()) {
                 messages.add(ChatMessage("assistant", "⚠️ No API key found. Please go to Settings and add your API key."))
