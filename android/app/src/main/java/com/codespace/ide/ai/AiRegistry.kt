@@ -19,5 +19,6 @@ class AiRegistry @Inject constructor(
         AiProviderId.GEMINI -> GeminiProvider(config, client)
         AiProviderId.DEEPSEEK -> DeepSeekProvider(config, client)
         AiProviderId.OLLAMA -> OllamaProvider(config, client)
+        AiProviderId.OPENROUTER -> OpenRouterProvider(config, client)
     }
 }
