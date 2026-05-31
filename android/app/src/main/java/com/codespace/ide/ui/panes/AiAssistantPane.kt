@@ -1,5 +1,6 @@
 package com.codespace.ide.ui.panes
 
+import android.content.Context
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -47,15 +48,42 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
+private const val PREFS_NAME = "ai_chat_history"
+private const val KEY_HISTORY = "chat_history"
+
+private fun saveHistory(context: Context, messages: List<ChatMessage>) {
+    val arr = JSONArray()
+    messages.forEach { arr.put(JSONObject().put("role", it.role).put("content", it.content)) }
+    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .edit().putString(KEY_HISTORY, arr.toString()).apply()
+}
+
+private fun loadHistory(context: Context): List<ChatMessage> {
+    val str = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getString(KEY_HISTORY, null) ?: return emptyList()
+    return try {
+        val arr = JSONArray(str)
+        (0 until arr.length()).map {
+            val obj = arr.getJSONObject(it)
+            ChatMessage(obj.getString("role"), obj.getString("content"))
+        }
+    } catch (e: Exception) { emptyList() }
+}
+
 @Composable
 fun AiAssistantPane(tokenStore: SecureTokenStore) {
+    val context = LocalContext.current
     var input by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf("") }
     val messages = remember {
-        mutableStateListOf(
-            ChatMessage("assistant", "Hi! I can explain, refactor, fix, document, or test your code. Ask me anything!")
-        )
+        val saved = loadHistory(context)
+        mutableStateListOf<ChatMessage>().apply {
+            if (saved.isEmpty()) {
+                add(ChatMessage("assistant", "Hi! I can explain, refactor, fix, document, or test your code. Ask me anything!"))
+            } else {
+                addAll(saved)
+            }
+        }
     }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -64,7 +92,6 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
         if (userMessage.isBlank()) return
         messages.add(ChatMessage("user", userMessage))
         loading = true
-        error = ""
         input = ""
 
         try {
@@ -73,13 +100,9 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
 
             if (apiKey.isBlank()) {
                 messages.add(ChatMessage("assistant", "⚠️ No API key found. Please go to Settings and add your API key."))
+                saveHistory(context, messages)
                 loading = false
                 return
-            }
-
-            val messagesJson = JSONArray()
-            messages.filter { it.role == "user" || messages.indexOf(it) > 0 }.forEach { m ->
-                messagesJson.put(JSONObject().put("role", m.role).put("content", m.content))
             }
 
             val model = when (activeProvider) {
@@ -93,9 +116,13 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
             val baseUrl = when (activeProvider) {
                 "CLAUDE" -> "https://api.anthropic.com/v1/messages"
                 "GEMINI" -> "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
-                else -> if (activeProvider == "OPENROUTER")
-                    "https://openrouter.ai/api/v1/chat/completions"
-                else "https://api.openai.com/v1/chat/completions"
+                "OPENROUTER" -> "https://openrouter.ai/api/v1/chat/completions"
+                else -> "https://api.openai.com/v1/chat/completions"
+            }
+
+            val messagesJson = JSONArray()
+            messages.filter { it.role == "user" || messages.indexOf(it) > 0 }.forEach { m ->
+                messagesJson.put(JSONObject().put("role", m.role).put("content", m.content))
             }
 
             val body = JSONObject()
@@ -126,9 +153,7 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
                 OkHttpClient().newCall(reqBuilder.build()).execute()
             }
 
-            val responseText = response.body?.string() ?: ""
-            val json = JSONObject(responseText)
-
+            val json = JSONObject(response.body?.string() ?: "")
             val content = when (activeProvider) {
                 "CLAUDE" -> json.getJSONArray("content").getJSONObject(0).getString("text")
                 "GEMINI" -> json.getJSONArray("candidates")
@@ -142,6 +167,7 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
         } catch (e: Exception) {
             messages.add(ChatMessage("assistant", "❌ Error: ${e.message}"))
         } finally {
+            saveHistory(context, messages)
             loading = false
         }
     }
@@ -202,10 +228,6 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
                     }
                 }
             }
-        }
-
-        if (error.isNotEmpty()) {
-            Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(8.dp))
         }
 
         Row(
