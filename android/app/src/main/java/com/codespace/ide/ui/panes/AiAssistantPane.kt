@@ -78,7 +78,7 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
             }
 
             val messagesJson = JSONArray()
-            messages.forEach { m ->
+            messages.filter { it.role == "user" || messages.indexOf(it) > 0 }.forEach { m ->
                 messagesJson.put(JSONObject().put("role", m.role).put("content", m.content))
             }
 
