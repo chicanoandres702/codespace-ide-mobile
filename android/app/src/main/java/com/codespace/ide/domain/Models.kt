@@ -65,6 +65,7 @@ enum class AiProviderId(val displayName: String) {
     GEMINI("Gemini"),
     DEEPSEEK("DeepSeek"),
     OLLAMA("Ollama (local)"),
+    OPENROUTER("OpenRouter"),
 }
 
 enum class AiAction { EXPLAIN, GENERATE, REFACTOR, FIX, DOCUMENT, TEST }
