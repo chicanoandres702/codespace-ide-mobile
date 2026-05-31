@@ -162,17 +162,33 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
             }
 
             val responseBody = response.body?.string() ?: ""
+
+            if (!response.isSuccessful) {
+                messages.add(ChatMessage("assistant", "❌ HTTP ${response.code}: $responseBody"))
+                saveHistory(context, messages)
+                loading = false
+                return
+            }
+
             val json = JSONObject(responseBody)
 
-            val errorMsg = json.optJSONObject("error")?.optString("message")
-if (errorMsg != null) { messages.add(ChatMessage("assistant", "❌ OpenRouter error: $errorMsg")); saveHistory(context, messages); loading = false; return }
-val content = when (activeProvider) {
-                "CLAUDE" -> json.getJSONArray("content").getJSONObject(0).getString("text")
-                "GEMINI" -> json.getJSONArray("candidates")
+            if (json.has("error")) {
+                val errMsg = json.getJSONObject("error").optString("message", responseBody)
+                messages.add(ChatMessage("assistant", "❌ API Error: $errMsg"))
+                saveHistory(context, messages)
+                loading = false
+                return
+            }
+
+            val content = when {
+                json.has("choices") -> json.getJSONArray("choices")
+                    .getJSONObject(0).getJSONObject("message").getString("content")
+                json.has("candidates") -> json.getJSONArray("candidates")
                     .getJSONObject(0).getJSONObject("content")
                     .getJSONArray("parts").getJSONObject(0).getString("text")
-                else -> json.getJSONArray("choices")
-                    .getJSONObject(0).getJSONObject("message").getString("content")
+                json.has("content") -> json.getJSONArray("content")
+                    .getJSONObject(0).getString("text")
+                else -> "Unexpected response: $responseBody"
             }
 
             messages.add(ChatMessage("assistant", content))
