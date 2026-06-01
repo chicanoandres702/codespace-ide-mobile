@@ -1,12 +1,14 @@
 package com.codespace.ide.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,12 +17,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -43,6 +51,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.codespace.ide.data.SecureTokenStore
@@ -84,11 +93,11 @@ fun ProjectShellScreen(
     var activeBottomTab by remember { mutableStateOf(BottomTab.TERMINAL) }
     var showBottomPanel by remember { mutableStateOf(true) }
 
-    // Draggable widths
+    // Dynamic sizing states with safety clamping limits
     var totalWidth by remember { mutableFloatStateOf(1080f) }
+    var totalHeight by remember { mutableFloatStateOf(1920f) }
     var sidePanelWidth by remember { mutableFloatStateOf(260f) }
     var bottomPanelHeight by remember { mutableFloatStateOf(250f) }
-    var totalHeight by remember { mutableFloatStateOf(1920f) }
     val density = LocalDensity.current
 
     val activityItems = listOf(
@@ -109,10 +118,73 @@ fun ProjectShellScreen(
                 totalHeight = it.size.height.toFloat()
             }
     ) {
-        // Main area (activity bar + side panel + editor)
+        // ========================================================
+        // 1. VS CODE TOP WINDOW TITLE BAR & COMMAND CENTER
+        // ========================================================
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(38.dp)
+                .background(VsCodeSidebar),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            // Connected to real onBack handler action 
+            Icon(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = "Back",
+                tint = VsCodeIcon,
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable { onBack() }
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Icon(
+                imageVector = Icons.Default.ArrowForward,
+                contentDescription = "Forward",
+                tint = VsCodeIcon.copy(alpha = 0.5f),
+                modifier = Modifier.size(16.dp)
+            )
+            
+            // Centered Command Palette Search Bar Component
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 24.dp, vertical = 5.dp)
+                    .fillMaxHeight()
+                    .background(Color(0xFF2D2D2D), shape = RoundedCornerShape(4.dp))
+                    .border(1.dp, VsCodeDivider, shape = RoundedCornerShape(4.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = VsCodeIcon, modifier = Modifier.size(12.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "codespace-ide-mobile [Workspace]",
+                        color = VsCodeText,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            
+            Icon(Icons.Default.MoreHoriz, contentDescription = "Layout Options", tint = VsCodeIcon, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
+        }
+        
+        HorizontalDivider(color = VsCodeDivider)
+
+        // ========================================================
+        // 2. MAIN CORE LAYOUT CORE RENDER
+        // ========================================================
         Row(Modifier.weight(1f).fillMaxWidth()) {
 
-            // Activity Bar
+            // FAR LEFT ACTIVITY BAR (Fixed 48dp width)
             Column(
                 Modifier
                     .width(48.dp)
@@ -136,81 +208,104 @@ fun ProjectShellScreen(
                             },
                         contentAlignment = Alignment.Center,
                     ) {
+                        // VS Code Accent Selection indicator vertical line
+                        if (isActive) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .width(2.dp)
+                                    .background(VsCodeStatusBar)
+                                    .align(Alignment.CenterStart)
+                            )
+                        }
                         Icon(
                             item.icon,
                             contentDescription = item.label,
                             tint = if (isActive) VsCodeIconActive else VsCodeIcon,
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(22.dp),
                         )
                     }
                 }
+                
                 Box(Modifier.weight(1f))
-                // Account icon
+                
+                // Account Action
                 Box(
                     Modifier.size(48.dp).clickable { },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.Person, contentDescription = "Account", tint = VsCodeIcon, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.Person, contentDescription = "Account", tint = VsCodeIcon, modifier = Modifier.size(22.dp))
                 }
-                // Settings icon
+                
+                // Settings Action - Tied directly into theme toggles
                 Box(
                     Modifier.size(48.dp).clickable { onToggleTheme() },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = VsCodeIcon, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = VsCodeIcon, modifier = Modifier.size(22.dp))
                 }
             }
 
             VerticalDivider(color = VsCodeDivider, modifier = Modifier.fillMaxHeight())
 
-            // Side Panel with draggable divider
+            // PRIMARY SIDE BAR ACCORDION (Draggable width)
             if (showSidePanel) {
                 val sidePanelWidthDp = with(density) { sidePanelWidth.toDp() }
                 Column(
                     Modifier
-                        .width(sidePanelWidthDp.coerceIn(150.dp, 500.dp))
+                        .width(sidePanelWidthDp.coerceIn(160.dp, 450.dp))
                         .fillMaxHeight()
                         .background(VsCodeSidebar)
                 ) {
-                    // Panel title
-                    Text(
-                        activityItems.first { it.panel == activePanel }.label.uppercase(),
-                        color = Color(0xFFBBBBBB),
-                        fontSize = 11.sp,
-                        letterSpacing = 1.sp,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    )
+                    // Side panel header row 
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = activityItems.first { it.panel == activePanel }.label.uppercase(),
+                            color = Color(0xFFBBBBBB),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = VsCodeIcon, modifier = Modifier.size(14.dp))
+                    }
                     HorizontalDivider(color = VsCodeDivider)
+                    
+                    // Connected layout pane modules switching states
                     Box(Modifier.fillMaxSize()) {
                         when (activePanel) {
                             SidePanel.EXPLORER -> ExplorerPane(onOpenFile = {})
                             SidePanel.GIT -> SourceControlPane()
                             SidePanel.AI -> AiAssistantPane(tokenStore = tokenStore)
                             else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Coming soon", color = VsCodeText, fontSize = 13.sp)
+                                Text("Feature panel staging", color = VsCodeIcon, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                             }
                         }
                     }
                 }
 
-                // Draggable vertical divider
+                // Smooth Draggable vertical split-pane line
                 Box(
                     Modifier
-                        .width(4.dp)
+                        .width(3.dp)
                         .fillMaxHeight()
                         .background(VsCodeDivider)
                         .pointerInput(Unit) {
                             detectDragGestures { _, dragAmount ->
                                 sidePanelWidth = (sidePanelWidth + dragAmount.x)
-                                    .coerceIn(150f, totalWidth - 200f)
+                                    .coerceIn(160f, totalWidth - 200f)
                             }
                         }
                 )
             }
 
-            // Editor + Bottom Panel
+            // RIGHT HAND BLOCK: FILE WORKSPACE EDITOR & AUXILIARY LOG CONSOLE
             Column(Modifier.weight(1f).fillMaxHeight()) {
-                // Editor tabs
+                
+                // EDITOR WORKSPACE CONTAINER TABS ROW
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -219,84 +314,102 @@ fun ProjectShellScreen(
                         .horizontalScroll(rememberScrollState()),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // Sample tabs
-                    listOf("index.ts", "main.py").forEachIndexed { i, name ->
+                    listOf("ProjectShellScreen.kt", "TerminalPane.kt").forEachIndexed { i, name ->
                         val isActive = i == 0
                         Row(
                             Modifier
                                 .background(if (isActive) VsCodeTabActive else VsCodeTabInactive)
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .fillMaxHeight()
+                                .border(end = 1.dp, color = VsCodeDivider)
+                                .padding(horizontal = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            if (isActive) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(2.dp)
+                                        .background(VsCodeStatusBar)
+                                        .align(Alignment.Top)
+                                )
+                            }
                             Text(
-                                name,
+                                text = name,
                                 color = if (isActive) VsCodeIconActive else VsCodeIcon,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
                                 fontWeight = if (isActive) FontWeight.Normal else FontWeight.Light,
                             )
-                            Text(
-                                "  ×",
-                                color = VsCodeIcon,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(start = 4.dp),
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = VsCodeIcon,
+                                modifier = Modifier.size(10.dp)
                             )
                         }
-                        VerticalDivider(color = VsCodeDivider)
                     }
                 }
                 HorizontalDivider(color = VsCodeDivider)
 
-                // Editor area
+                // MAIN EDITOR WINDOW PANEL CANVAS
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     EditorPane()
                 }
 
-                // Draggable horizontal divider for bottom panel
+                // BOTTOM AUXILIARY DRAWER LOG PANEL (Draggable height)
                 if (showBottomPanel) {
                     Box(
                         Modifier
                             .fillMaxWidth()
-                            .height(4.dp)
+                            .height(3.dp)
                             .background(VsCodeDivider)
                             .pointerInput(Unit) {
                                 detectDragGestures { _, dragAmount ->
                                     bottomPanelHeight = (bottomPanelHeight - dragAmount.y)
-                                        .coerceIn(100f, totalHeight - 300f)
+                                        .coerceIn(100f, totalHeight - 250f)
                                 }
                             }
                     )
 
-                    // Bottom panel
                     val bottomPanelHeightDp = with(density) { bottomPanelHeight.toDp() }
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .height(bottomPanelHeightDp.coerceIn(80.dp, 500.dp))
+                            .height(bottomPanelHeightDp.coerceIn(100.dp, 450.dp))
                             .background(VsCodeBottomPanel)
                     ) {
-                        // Bottom tabs
+                        // BOTTOM TOOL PANEL HEADER TAB BINDINGS
                         Row(
                             Modifier
                                 .fillMaxWidth()
+                                .height(32.dp)
                                 .background(VsCodeTabBar),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             BottomTab.entries.forEach { tab ->
                                 val isActive = activeBottomTab == tab
                                 Column(
-                                    Modifier.clickable { activeBottomTab = tab }
+                                    Modifier
+                                        .fillMaxHeight()
+                                        .clickable { activeBottomTab = tab }
+                                        .padding(horizontal = 14.dp),
+                                    verticalArrangement = Arrangement.Center
                                 ) {
                                     Text(
-                                        tab.name,
+                                        text = tab.name,
                                         color = if (isActive) VsCodeIconActive else VsCodeIcon,
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                        fontFamily = FontFamily.Monospace,
+                                        letterSpacing = 0.5.sp
                                     )
                                     if (isActive) {
+                                        Spacer(modifier = Modifier.height(2.dp))
                                         Box(
                                             Modifier
-                                                .fillMaxWidth()
-                                                .height(1.dp)
+                                                .width(28.dp)
+                                                .height(2.dp)
                                                 .background(VsCodeStatusBar)
                                         )
                                     }
@@ -305,21 +418,19 @@ fun ProjectShellScreen(
                         }
                         HorizontalDivider(color = VsCodeDivider)
 
-                        // Bottom panel content
+                        // PERSISTENT PANE STATE INTEGRATION
                         Box(Modifier.fillMaxSize()) {
                             when (activeBottomTab) {
                                 BottomTab.TERMINAL -> TerminalPane()
                                 BottomTab.PROBLEMS -> Box(
-                                    Modifier.fillMaxSize().padding(16.dp),
-                                    contentAlignment = Alignment.TopStart,
+                                    Modifier.fillMaxSize().padding(12.dp)
                                 ) {
-                                    Text("No problems detected.", color = VsCodeText, fontSize = 13.sp)
+                                    Text("No diagnostics compiler alerts detected in directory.", color = VsCodeIcon, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                                 }
                                 BottomTab.OUTPUT -> Box(
-                                    Modifier.fillMaxSize().padding(16.dp),
-                                    contentAlignment = Alignment.TopStart,
+                                    Modifier.fillMaxSize().padding(12.dp)
                                 ) {
-                                    Text("No output.", color = VsCodeText, fontSize = 13.sp)
+                                    Text("Initializing environment output streams... ready.", color = VsCodeIcon, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                                 }
                             }
                         }
@@ -330,7 +441,9 @@ fun ProjectShellScreen(
 
         HorizontalDivider(color = VsCodeDivider)
 
-        // Status bar
+        // ========================================================
+        // 3. BLUE SYSTEM ENVIRONMENT STATUS BAR (Fixed 22dp height)
+        // ========================================================
         Row(
             Modifier
                 .fillMaxWidth()
@@ -339,16 +452,21 @@ fun ProjectShellScreen(
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("⎇  main", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-            Text("  •  $projectId", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+            Text("⎇ main", color = Color.White, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+            Text("  •  $projectId", color = Color.White, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+            
             Box(Modifier.weight(1f))
+            
             Text(
-                if (isDark) "Dark+" else "Light+",
+                text = if (isDark) "Dark Modern" else "Light Modern",
                 color = Color.White,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 modifier = Modifier.clickable { onToggleTheme() },
+                fontFamily = FontFamily.Monospace
             )
-            Text("  Ln 1, Col 1", color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Spacer(modifier = Modifier.width(12.dp))
+            Text("Ln 1, Col 1", color = Color.White, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
         }
     }
 }
