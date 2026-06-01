@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -93,7 +94,6 @@ fun ProjectShellScreen(
     var activeBottomTab by remember { mutableStateOf(BottomTab.TERMINAL) }
     var showBottomPanel by remember { mutableStateOf(true) }
 
-    // Dynamic sizing states with safety clamping limits
     var totalWidth by remember { mutableFloatStateOf(1080f) }
     var totalHeight by remember { mutableFloatStateOf(1920f) }
     var sidePanelWidth by remember { mutableFloatStateOf(260f) }
@@ -118,9 +118,7 @@ fun ProjectShellScreen(
                 totalHeight = it.size.height.toFloat()
             }
     ) {
-        // ========================================================
-        // 1. VS CODE TOP WINDOW TITLE BAR & COMMAND CENTER
-        // ========================================================
+        // 1. VS CODE TOP WINDOW TITLE BAR
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -130,7 +128,6 @@ fun ProjectShellScreen(
         ) {
             Spacer(modifier = Modifier.width(12.dp))
             
-            // Connected to real onBack handler action 
             Icon(
                 imageVector = Icons.Default.ArrowBack,
                 contentDescription = "Back",
@@ -147,7 +144,6 @@ fun ProjectShellScreen(
                 modifier = Modifier.size(16.dp)
             )
             
-            // Centered Command Palette Search Bar Component
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -179,12 +175,10 @@ fun ProjectShellScreen(
         
         HorizontalDivider(color = VsCodeDivider)
 
-        // ========================================================
-        // 2. MAIN CORE LAYOUT CORE RENDER
-        // ========================================================
+        // 2. MAIN CORE LAYOUT
         Row(Modifier.weight(1f).fillMaxWidth()) {
 
-            // FAR LEFT ACTIVITY BAR (Fixed 48dp width)
+            // ACTIVITY BAR
             Column(
                 Modifier
                     .width(48.dp)
@@ -208,7 +202,6 @@ fun ProjectShellScreen(
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        // VS Code Accent Selection indicator vertical line
                         if (isActive) {
                             Box(
                                 modifier = Modifier
@@ -229,26 +222,18 @@ fun ProjectShellScreen(
                 
                 Box(Modifier.weight(1f))
                 
-                // Account Action
-                Box(
-                    Modifier.size(48.dp).clickable { },
-                    contentAlignment = Alignment.Center,
-                ) {
+                Box(Modifier.size(48.dp).clickable { }, contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Person, contentDescription = "Account", tint = VsCodeIcon, modifier = Modifier.size(22.dp))
                 }
                 
-                // Settings Action - Tied directly into theme toggles
-                Box(
-                    Modifier.size(48.dp).clickable { onToggleTheme() },
-                    contentAlignment = Alignment.Center,
-                ) {
+                Box(Modifier.size(48.dp).clickable { onToggleTheme() }, contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Settings, contentDescription = "Settings", tint = VsCodeIcon, modifier = Modifier.size(22.dp))
                 }
             }
 
             VerticalDivider(color = VsCodeDivider, modifier = Modifier.fillMaxHeight())
 
-            // PRIMARY SIDE BAR ACCORDION (Draggable width)
+            // PRIMARY SIDE BAR ACCORDION
             if (showSidePanel) {
                 val sidePanelWidthDp = with(density) { sidePanelWidth.toDp() }
                 Column(
@@ -257,7 +242,6 @@ fun ProjectShellScreen(
                         .fillMaxHeight()
                         .background(VsCodeSidebar)
                 ) {
-                    // Side panel header row 
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -274,7 +258,6 @@ fun ProjectShellScreen(
                     }
                     HorizontalDivider(color = VsCodeDivider)
                     
-                    // Connected layout pane modules switching states
                     Box(Modifier.fillMaxSize()) {
                         when (activePanel) {
                             SidePanel.EXPLORER -> ExplorerPane(onOpenFile = {})
@@ -287,7 +270,7 @@ fun ProjectShellScreen(
                     }
                 }
 
-                // Smooth Draggable vertical split-pane line
+                // Vertical split-pane line
                 Box(
                     Modifier
                         .width(3.dp)
@@ -302,10 +285,10 @@ fun ProjectShellScreen(
                 )
             }
 
-            // RIGHT HAND BLOCK: FILE WORKSPACE EDITOR & AUXILIARY LOG CONSOLE
+            // RIGHT HAND BLOCK
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 
-                // EDITOR WORKSPACE CONTAINER TABS ROW
+                // EDITOR WORKSPACE CONTAINER TABS
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -320,7 +303,6 @@ fun ProjectShellScreen(
                             Modifier
                                 .background(if (isActive) VsCodeTabActive else VsCodeTabInactive)
                                 .fillMaxHeight()
-                                .border(end = 1.dp, color = VsCodeDivider)
                                 .padding(horizontal = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -348,16 +330,18 @@ fun ProjectShellScreen(
                                 modifier = Modifier.size(10.dp)
                             )
                         }
+                        // Added simple divider instead of one-sided border modifier
+                        Box(Modifier.width(1.dp).fillMaxHeight().background(VsCodeDivider))
                     }
                 }
                 HorizontalDivider(color = VsCodeDivider)
 
-                // MAIN EDITOR WINDOW PANEL CANVAS
+                // MAIN EDITOR WINDOW
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     EditorPane()
                 }
 
-                // BOTTOM AUXILIARY DRAWER LOG PANEL (Draggable height)
+                // BOTTOM PANEL
                 if (showBottomPanel) {
                     Box(
                         Modifier
@@ -379,7 +363,7 @@ fun ProjectShellScreen(
                             .height(bottomPanelHeightDp.coerceIn(100.dp, 450.dp))
                             .background(VsCodeBottomPanel)
                     ) {
-                        // BOTTOM TOOL PANEL HEADER TAB BINDINGS
+                        // BOTTOM TOOL PANEL HEADER
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -418,7 +402,6 @@ fun ProjectShellScreen(
                         }
                         HorizontalDivider(color = VsCodeDivider)
 
-                        // PERSISTENT PANE STATE INTEGRATION
                         Box(Modifier.fillMaxSize()) {
                             when (activeBottomTab) {
                                 BottomTab.TERMINAL -> TerminalPane()
@@ -441,9 +424,7 @@ fun ProjectShellScreen(
 
         HorizontalDivider(color = VsCodeDivider)
 
-        // ========================================================
-        // 3. BLUE SYSTEM ENVIRONMENT STATUS BAR (Fixed 22dp height)
-        // ========================================================
+        // 3. BLUE SYSTEM ENVIRONMENT STATUS BAR
         Row(
             Modifier
                 .fillMaxWidth()
