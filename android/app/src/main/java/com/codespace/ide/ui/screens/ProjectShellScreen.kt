@@ -250,9 +250,7 @@ fun ProjectShellScreen(
                                         BottomTab.PROBLEMS -> Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {
                                             Text("No problems have been detected in the workspace.", fontSize = 13.sp, color = TabTextInactive)
                                         }
-                                        BottomTab.OUTPUT -> Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {
-                                            Text("", fontSize = 13.sp, color = TabTextInactive)
-                                        }
+                                        BottomTab.OUTPUT -> OutputPanel()
                                     }
                                 }
                             }
@@ -754,6 +752,71 @@ private fun ExtSection(title: String, expanded: Boolean, count: Int, onClick: ()
         if (count >= 0) {
             Box(Modifier.size(18.dp).clip(CircleShape).background(Color(0xFF007ACC)), contentAlignment = Alignment.Center) {
                 Text("$count", fontSize = 10.sp, color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+private fun OutputPanel() {
+    var filterText by remember { mutableStateOf("") }
+    val outputLog = remember { mutableStateListOf<String>() }
+
+    Column(Modifier.fillMaxSize().background(Color(0xFFF3F3F3))) {
+        // Filter + channel bar (matches VS Code Output tab)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFECECEC))
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            // Filter input
+            androidx.compose.foundation.text.BasicTextField(
+                value = filterText,
+                onValueChange = { filterText = it },
+                modifier = Modifier
+                    .weight(1f)
+                    .background(Color(0xFFFFFFFF), RoundedCornerShape(3.dp))
+                    .border(1.dp, Color(0xFFD0D0D0), RoundedCornerShape(3.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = Color(0xFF333333)),
+                decorationBox = { inner ->
+                    if (filterText.isEmpty()) {
+                        Text("Filter (e.g. text, !excludeText, t...)", fontSize = 11.sp, color = Color(0xFFAAAAAA))
+                    }
+                    inner()
+                },
+                singleLine = true,
+            )
+            // Channel dropdown (static — Tasks)
+            Row(
+                Modifier
+                    .background(Color(0xFFFFFFFF), RoundedCornerShape(3.dp))
+                    .border(1.dp, Color(0xFFD0D0D0), RoundedCornerShape(3.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text("Tasks", fontSize = 12.sp, color = Color(0xFF333333))
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color(0xFF717171), modifier = Modifier.size(14.dp))
+            }
+        }
+        HorizontalDivider(color = Color(0xFFD0D0D0))
+        // Output content (empty by default)
+        LazyColumn(
+            Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            if (outputLog.isEmpty()) {
+                item {
+                    Text("", fontSize = 13.sp, color = Color(0xFF717171))
+                }
+            } else {
+                items(outputLog) { line ->
+                    Text(line, fontSize = 13.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF333333),
+                        modifier = Modifier.padding(vertical = 1.dp))
+                }
             }
         }
     }
