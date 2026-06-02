@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -271,14 +272,28 @@ fun ProjectShellScreen(
                                 }
                                 HorizontalDivider(color = DividerColor)
                                 Box(Modifier.fillMaxSize()) {
-                                    // Terminal always composed to preserve session state
-                                    Box(Modifier.fillMaxSize().then(if (activeBottomTab == BottomTab.TERMINAL) Modifier else Modifier.size(0.dp))) {
+                                    // All three panels stay composed at all times so state
+                                    // (terminal session, scroll position, etc.) is never lost.
+                                    // Only the active one is visible; others are hidden via alpha=0.
+                                    Box(
+                                        Modifier.fillMaxSize()
+                                            .graphicsLayer { alpha = if (activeBottomTab == BottomTab.TERMINAL) 1f else 0f }
+                                            .then(if (activeBottomTab == BottomTab.TERMINAL) Modifier else Modifier.pointerInput(Unit) {})
+                                    ) {
                                         TerminalPane()
                                     }
-                                    if (activeBottomTab == BottomTab.PROBLEMS) {
+                                    Box(
+                                        Modifier.fillMaxSize()
+                                            .graphicsLayer { alpha = if (activeBottomTab == BottomTab.PROBLEMS) 1f else 0f }
+                                            .then(if (activeBottomTab == BottomTab.PROBLEMS) Modifier else Modifier.pointerInput(Unit) {})
+                                    ) {
                                         ProblemsPanel()
                                     }
-                                    if (activeBottomTab == BottomTab.OUTPUT) {
+                                    Box(
+                                        Modifier.fillMaxSize()
+                                            .graphicsLayer { alpha = if (activeBottomTab == BottomTab.OUTPUT) 1f else 0f }
+                                            .then(if (activeBottomTab == BottomTab.OUTPUT) Modifier else Modifier.pointerInput(Unit) {})
+                                    ) {
                                         OutputPanel()
                                     }
                                 }
@@ -872,3 +887,4 @@ private fun OutputPanel() {
         }
     }
 }
+
