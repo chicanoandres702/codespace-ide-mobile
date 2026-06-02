@@ -33,10 +33,10 @@ import com.codespace.ide.data.SecureTokenStore
 import com.codespace.ide.ui.panes.*
 
 private val BgColor = Color(0xFFFFFFFF)
-private val SidePanelBg = Color(0xFFF3F3F3)
-private val ActivityBarBg = Color(0xFF2C2C2C)
-private val ActivityBarIcon = Color(0xFF858585)
-private val ActivityBarIconActive = Color(0xFFFFFFFF)
+private val SidePanelBg = Color(0xFFFFFFFF)
+private val ActivityBarBg = Color(0xFFFFFFFF)
+private val ActivityBarIcon = Color(0xFF424242)
+private val ActivityBarIconActive = Color(0xFF007ACC)
 private val TabBarBg = Color(0xFFECECEC)
 private val TabActiveBg = Color(0xFFFFFFFF)
 private val TabInactiveBg = Color(0xFFECECEC)
@@ -44,8 +44,8 @@ private val TabActiveIndicator = Color(0xFF007ACC)
 private val TabText = Color(0xFF333333)
 private val TabTextInactive = Color(0xFF717171)
 private val DividerColor = Color(0xFFE0E0E0)
-private val StatusBarBg = Color(0xFF007ACC)
-private val PanelBg = Color(0xFFF3F3F3)
+private val StatusBarBg = Color(0xFFFFFFFF)
+private val PanelBg = Color(0xFFFFFFFF)
 private val SectionHeaderText = Color(0xFF717171)
 private val FloatingMenuBg = Color(0xFFFFFFFF)
 private val FloatingMenuBorder = Color(0xFFD4D4D4)
@@ -115,7 +115,7 @@ fun ProjectShellScreen(
                             },
                             contentAlignment = Alignment.Center,
                         ) {
-                            if (isActive) Box(Modifier.width(2.dp).height(24.dp).align(Alignment.CenterStart).background(Color.White))
+                            if (isActive) Box(Modifier.width(2.dp).height(24.dp).align(Alignment.CenterStart).background(Color(0xFF007ACC)))
                             Icon(icon, null, tint = if (isActive) ActivityBarIconActive else ActivityBarIcon, modifier = Modifier.size(24.dp))
                         }
                     }
@@ -245,12 +245,17 @@ fun ProjectShellScreen(
                                 }
                                 HorizontalDivider(color = DividerColor)
                                 Box(Modifier.fillMaxSize()) {
-                                    when (activeBottomTab) {
-                                        BottomTab.TERMINAL -> TerminalPane()
-                                        BottomTab.PROBLEMS -> Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {
+                                    // Terminal is always composed to preserve state; only visibility changes
+                                    Box(Modifier.fillMaxSize().then(if (activeBottomTab == BottomTab.TERMINAL) Modifier else Modifier.size(0.dp))) {
+                                        TerminalPane()
+                                    }
+                                    if (activeBottomTab == BottomTab.PROBLEMS) {
+                                        Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {
                                             Text("No problems have been detected in the workspace.", fontSize = 13.sp, color = TabTextInactive)
                                         }
-                                        BottomTab.OUTPUT -> OutputPanel()
+                                    }
+                                    if (activeBottomTab == BottomTab.OUTPUT) {
+                                        OutputPanel()
                                     }
                                 }
                             }
@@ -285,19 +290,19 @@ fun ProjectShellScreen(
                 Modifier.fillMaxWidth().height(22.dp).background(StatusBarBg).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.SwapHoriz, null, tint = Color.White, modifier = Modifier.size(14.dp).clickable { showBottomPanel = !showBottomPanel })
+                Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF424242), modifier = Modifier.size(14.dp).clickable { showBottomPanel = !showBottomPanel })
                 Spacer(Modifier.width(4.dp))
-                Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(12.dp))
-                Text(" 0", color = Color.White, fontSize = 11.sp)
+                Icon(Icons.Default.Close, null, tint = Color(0xFF424242), modifier = Modifier.size(12.dp))
+                Text(" 0", color = Color(0xFF424242), fontSize = 11.sp)
                 Spacer(Modifier.width(4.dp))
-                Icon(Icons.Default.Warning, null, tint = Color.White, modifier = Modifier.size(12.dp))
-                Text(" 0", color = Color.White, fontSize = 11.sp)
+                Icon(Icons.Default.Warning, null, tint = Color(0xFF424242), modifier = Modifier.size(12.dp))
+                Text(" 0", color = Color(0xFF424242), fontSize = 11.sp)
                 Spacer(Modifier.weight(1f))
-                Text("⎇  main", color = Color.White, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                Text("⎇  main", color = Color(0xFF424242), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                 Spacer(Modifier.width(12.dp))
-                Text("Layout: us", color = Color.White, fontSize = 11.sp)
+                Text("Layout: us", color = Color(0xFF424242), fontSize = 11.sp)
                 Spacer(Modifier.width(8.dp))
-                Icon(Icons.Default.Notifications, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                Icon(Icons.Default.Notifications, null, tint = Color(0xFF424242), modifier = Modifier.size(14.dp))
             }
         }
 
