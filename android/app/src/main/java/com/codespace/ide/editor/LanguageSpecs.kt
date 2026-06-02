@@ -41,16 +41,16 @@ object LanguageSpecs {
                 "is", "in", "None", "True", "False", "async", "await", "self",
             ),
             types = setOf("int", "str", "float", "bool", "list", "dict", "set", "tuple", "bytes"),
-            comments = Triple("#", null.toString(), ""),
-        ).copy(blockCommentStart = null, blockCommentEnd = null)
+            comments = Triple("#", "\"\"\"", "\"\"\""),
+        )
         Language.KOTLIN -> spec(
             keywords = setOf(
                 "fun", "val", "var", "class", "object", "interface", "enum", "sealed", "data",
                 "return", "if", "else", "when", "for", "while", "do", "break", "continue",
                 "import", "package", "try", "catch", "finally", "throw", "this", "super",
                 "companion", "override", "private", "public", "protected", "internal",
-                "abstract", "open", "final", "lateinit", "lazy", "by", "in", "is", "as",
-                "null", "true", "false", "suspend", "coroutine", "inline", "reified",
+                "abstract", "open", "final", "lateinit", "by", "in", "is", "as",
+                "null", "true", "false", "suspend", "inline", "reified",
                 "typealias", "init", "constructor",
             ),
             types = setOf("Int", "Long", "Double", "Float", "Boolean", "Char", "Byte", "Short",
@@ -109,21 +109,39 @@ object LanguageSpecs {
                 "this", "null", "true", "false", "const", "var", "as",
             ),
         )
-        Language.SHELL -> spec(
+        Language.SHELL -> LanguageSpec(
             keywords = setOf(
                 "if", "then", "else", "elif", "fi", "for", "in", "do", "done", "while",
                 "case", "esac", "function", "return", "exit", "echo", "export", "source",
                 "local", "readonly", "shift", "trap", "eval", "exec", "alias", "unset",
                 "set", "break", "continue", "true", "false",
             ),
-            comments = Triple("#", null, null),
-        ).copy(blockCommentStart = null, blockCommentEnd = null)
-        Language.XML -> spec(keywords = emptySet(), comments = Triple("", "<!--", "-->"))
-            .copy(lineComment = null)
-        Language.HTML -> spec(keywords = emptySet(), comments = Triple("", "<!--", "-->"))
-            .copy(lineComment = null)
-        Language.CSS -> spec(keywords = emptySet(), comments = Triple("", "/*", "*/"))
-            .copy(lineComment = null)
+            types = emptySet(),
+            lineComment = "#",
+            blockCommentStart = null,
+            blockCommentEnd = null,
+        )
+        Language.XML -> LanguageSpec(
+            keywords = emptySet(),
+            types = emptySet(),
+            lineComment = null,
+            blockCommentStart = "<!--",
+            blockCommentEnd = "-->",
+        )
+        Language.HTML -> LanguageSpec(
+            keywords = emptySet(),
+            types = emptySet(),
+            lineComment = null,
+            blockCommentStart = "<!--",
+            blockCommentEnd = "-->",
+        )
+        Language.CSS -> LanguageSpec(
+            keywords = emptySet(),
+            types = emptySet(),
+            lineComment = null,
+            blockCommentStart = "/*",
+            blockCommentEnd = "*/",
+        )
         Language.JSON -> spec(
             keywords = setOf("true", "false", "null"),
             comments = null,
