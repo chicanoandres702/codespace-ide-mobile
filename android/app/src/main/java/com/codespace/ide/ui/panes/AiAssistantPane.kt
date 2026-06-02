@@ -122,15 +122,26 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
                 else -> "mistralai/mistral-7b-instruct:free"
             }
 
-            val messagesJson = JSONArray()
-            messages.filter { it.role == "user" || messages.indexOf(it) > 0 }.forEach { m ->
-                messagesJson.put(JSONObject().put("role", m.role).put("content", m.content))
+            // Build request body — Gemini uses "contents"/"parts", others use "messages"
+            val body: String
+            if (activeProvider == "GEMINI") {
+                val contentsJson = JSONArray()
+                messages.filter { it.role == "user" || it.role == "model" }.forEach { m ->
+                    val role = if (m.role == "assistant") "model" else m.role
+                    val partsArr = JSONArray().put(JSONObject().put("text", m.content))
+                    contentsJson.put(JSONObject().put("role", role).put("parts", partsArr))
+                }
+                body = JSONObject().put("contents", contentsJson).toString()
+            } else {
+                val messagesJson = JSONArray()
+                messages.filter { it.role == "user" || messages.indexOf(it) > 0 }.forEach { m ->
+                    messagesJson.put(JSONObject().put("role", m.role).put("content", m.content))
+                }
+                body = JSONObject()
+                    .put("model", model)
+                    .put("messages", messagesJson)
+                    .toString()
             }
-
-            val body = JSONObject()
-                .put("model", model)
-                .put("messages", messagesJson)
-                .toString()
 
             val reqBuilder = Request.Builder()
                 .header("Content-Type", "application/json")
@@ -278,3 +289,4 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
         }
     }
 }
+
