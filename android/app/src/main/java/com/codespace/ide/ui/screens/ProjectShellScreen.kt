@@ -1,5 +1,6 @@
 package com.codespace.ide.ui.screens
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,7 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -68,7 +68,10 @@ fun ProjectShellScreen(
 ) {
     val density = LocalDensity.current
     var activePanel by remember { mutableStateOf<SidePanel?>(null) }
-    var showBottomPanel by remember { mutableStateOf(true) }
+    // bottomPanelVisible controls whether panel is shown or collapsed.
+    // We NEVER remove it from the composition tree — only animate its height to 0
+    // so Terminal/Output/Problems sessions are never destroyed.
+    var bottomPanelVisible by remember { mutableStateOf(true) }
     var showAiPanel by remember { mutableStateOf(false) }
     var activeBottomTab by remember { mutableStateOf(BottomTab.TERMINAL) }
     var totalWidth by remember { mutableFloatStateOf(1080f) }
@@ -84,12 +87,19 @@ fun ProjectShellScreen(
     var showGearThemeMenu by remember { mutableStateOf(false) }
     var showColorTheme by remember { mutableStateOf(false) }
     var showRunMenu by remember { mutableStateOf(false) }
-    var showTerminalMenu by remember { mutableStateOf(false) }
+    // showPanelMenu is the "..." menu in the bottom tab bar (context-aware per tab)
+    var showPanelMenu by remember { mutableStateOf(false) }
     var showExplorerMore by remember { mutableStateOf(false) }
     var commandQuery by remember { mutableStateOf("") }
     var commandTab by remember { mutableStateOf("Commands") }
     val editorTabs = remember { mutableStateListOf<String>() }
     var activeEditorTab by remember { mutableStateOf<String?>(null) }
+
+    // Animate bottom panel height: when collapsed → 0.dp, when open → actual height
+    val animatedBh by animateDpAsState(
+        targetValue = if (bottomPanelVisible) with(density) { bottomPanelHeight.toDp() }.coerceIn(60.dp, 500.dp) else 0.dp,
+        label = "bottomPanelHeight"
+    )
 
     Box(
         Modifier.fillMaxSize().background(BgColor)
@@ -184,118 +194,142 @@ fun ProjectShellScreen(
                                                 })
                                         }
                                         if (isActive) Box(Modifier.fillMaxWidth().height(1.dp).background(TabActiveIndicator))
+                                        else Spacer(Modifier.height(1.dp))
                                     }
-                                    Box(Modifier.width(1.dp).height(35.dp).background(DividerColor))
                                 }
                             }
-                            HorizontalDivider(color = DividerColor)
                         }
 
-                        Box(Modifier.weight(1f).fillMaxWidth().background(BgColor)) {
+                        Box(Modifier.weight(1f).fillMaxWidth()) {
                             if (activeEditorTab != null) {
-                                EditorPane()
+                                EditorPane(fileName = activeEditorTab ?: "")
                             } else {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Text("</>\nCodeSpace IDE", fontSize = 48.sp, color = Color(0xFFE0E0E0),
-                                        fontWeight = FontWeight.Light, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                Box(Modifier.fillMaxSize().background(BgColor), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("CodeSpace IDE", fontSize = 32.sp, color = Color(0xFFDDDDDD),
+                                            fontWeight = FontWeight.Light, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                    }
                                 }
                             }
                         }
 
-                        if (showBottomPanel) {
-                            Box(
-                                Modifier.fillMaxWidth().height(4.dp).background(DividerColor)
-                                    .pointerInput(Unit) {
-                                        detectDragGestures { _, dragAmount ->
-                                            val nh = bottomPanelHeight - dragAmount.y
-                                            if (nh < 60f) showBottomPanel = false
-                                            else bottomPanelHeight = nh.coerceIn(60f, totalHeight * 0.6f)
+                        // ── BOTTOM PANEL ──────────────────────────────────────────────
+                        // The drag handle is always present so you can re-open the panel
+                        // by dragging up even when it is collapsed. The three panels
+                        // (Terminal / Output / Problems) are ALWAYS in the composition
+                        // tree — we only hide them by setting height to 0 — so the
+                        // terminal session is NEVER killed when you close or switch tabs.
+                        Box(
+                            Modifier.fillMaxWidth().height(4.dp).background(DividerColor)
+                                .pointerInput(Unit) {
+                                    detectDragGestures { _, dragAmount ->
+                                        val nh = bottomPanelHeight - dragAmount.y
+                                        if (nh < 40f) {
+                                            bottomPanelVisible = false
+                                        } else {
+                                            bottomPanelHeight = nh.coerceIn(60f, totalHeight * 0.6f)
+                                            bottomPanelVisible = true
                                         }
                                     }
-                            )
-                            val bh = with(density) { bottomPanelHeight.toDp() }.coerceIn(60.dp, 500.dp)
-                            Column(Modifier.fillMaxWidth().height(bh).background(PanelBg)) {
-                                Row(
-                                    Modifier.fillMaxWidth().background(TabBarBg).height(35.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    // PROBLEMS | OUTPUT | TERMINAL tabs
-                                    BottomTab.entries.forEach { tab ->
-                                        val isActive = tab == activeBottomTab
-                                        Column(
-                                            Modifier.clickable { activeBottomTab = tab }.fillMaxHeight(),
-                                            verticalArrangement = Arrangement.Bottom,
-                                        ) {
-                                            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                                Text(
-                                                    tab.name,
-                                                    fontSize = 12.sp,
-                                                    color = if (isActive) TabText else TabTextInactive,
-                                                    fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
-                                                )
-                                            }
-                                            if (isActive) Box(Modifier.fillMaxWidth().height(1.dp).background(TabActiveIndicator))
-                                            else Spacer(Modifier.height(1.dp))
-                                        }
-                                    }
-                                    Spacer(Modifier.weight(1f))
-                                    // Context icons per tab
-                                    when (activeBottomTab) {
-                                        BottomTab.PROBLEMS -> {
-                                            Icon(Icons.Default.FilterList, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
-                                            Spacer(Modifier.width(6.dp))
-                                            Icon(Icons.Default.UnfoldLess, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
-                                            Spacer(Modifier.width(6.dp))
-                                        }
-                                        BottomTab.OUTPUT -> {
-                                            Icon(Icons.Default.FilterList, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
-                                            Spacer(Modifier.width(6.dp))
-                                            Icon(Icons.Default.Lock, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
-                                            Spacer(Modifier.width(6.dp))
-                                        }
-                                        BottomTab.TERMINAL -> { /* no extra icons */ }
-                                    }
-                                    // Always-visible: ... | expand | close
-                                    Icon(Icons.Default.MoreHoriz, null, tint = TabTextInactive,
-                                        modifier = Modifier.size(16.dp).clickable { showTerminalMenu = true })
-                                    Spacer(Modifier.width(6.dp))
-                                    Box(Modifier.width(1.dp).height(16.dp).background(DividerColor))
-                                    Spacer(Modifier.width(6.dp))
-                                    Icon(Icons.Default.OpenInFull, null, tint = TabTextInactive,
-                                        modifier = Modifier.size(16.dp).clickable {
-                                            bottomPanelHeight = if (bottomPanelHeight > totalHeight * 0.7f) 300f else totalHeight * 0.85f
-                                        })
-                                    Spacer(Modifier.width(6.dp))
-                                    Icon(Icons.Default.Close, null, tint = TabTextInactive,
-                                        modifier = Modifier.size(16.dp).clickable { showBottomPanel = false })
-                                    Spacer(Modifier.width(8.dp))
                                 }
-                                HorizontalDivider(color = DividerColor)
-                                Box(Modifier.fillMaxSize()) {
-                                    // All three panels stay composed at all times so state
-                                    // (terminal session, scroll position, etc.) is never lost.
-                                    // Only the active one is visible; others are hidden via alpha=0.
-                                    Box(
-                                        Modifier.fillMaxSize()
-                                            .graphicsLayer { alpha = if (activeBottomTab == BottomTab.TERMINAL) 1f else 0f }
-                                            .then(if (activeBottomTab == BottomTab.TERMINAL) Modifier else Modifier.pointerInput(Unit) {})
-                                    ) {
-                                        TerminalPane()
+                        )
+
+                        // Tab bar — always visible even when panel is collapsed,
+                        // so tapping a tab re-opens the panel.
+                        Row(
+                            Modifier.fillMaxWidth().background(TabBarBg).height(35.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            // PROBLEMS | OUTPUT | TERMINAL — always visible, never disappear
+                            BottomTab.entries.forEach { tab ->
+                                val isActive = tab == activeBottomTab
+                                Column(
+                                    Modifier
+                                        .clickable {
+                                            if (!bottomPanelVisible) {
+                                                // Tapping a tab re-opens the panel
+                                                bottomPanelVisible = true
+                                            }
+                                            activeBottomTab = tab
+                                        }
+                                        .fillMaxHeight(),
+                                    verticalArrangement = Arrangement.Bottom,
+                                ) {
+                                    Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                        Text(
+                                            tab.name,
+                                            fontSize = 12.sp,
+                                            color = if (isActive) TabText else TabTextInactive,
+                                            fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
+                                        )
                                     }
-                                    Box(
-                                        Modifier.fillMaxSize()
-                                            .graphicsLayer { alpha = if (activeBottomTab == BottomTab.PROBLEMS) 1f else 0f }
-                                            .then(if (activeBottomTab == BottomTab.PROBLEMS) Modifier else Modifier.pointerInput(Unit) {})
-                                    ) {
-                                        ProblemsPanel()
-                                    }
-                                    Box(
-                                        Modifier.fillMaxSize()
-                                            .graphicsLayer { alpha = if (activeBottomTab == BottomTab.OUTPUT) 1f else 0f }
-                                            .then(if (activeBottomTab == BottomTab.OUTPUT) Modifier else Modifier.pointerInput(Unit) {})
-                                    ) {
-                                        OutputPanel()
-                                    }
+                                    // Active underline indicator — just like VS Code
+                                    if (isActive) Box(Modifier.fillMaxWidth().height(1.dp).background(TabActiveIndicator))
+                                    else Spacer(Modifier.height(1.dp))
+                                }
+                            }
+                            Spacer(Modifier.weight(1f))
+                            // Context icons per tab (match VS Code)
+                            when (activeBottomTab) {
+                                BottomTab.PROBLEMS -> {
+                                    Icon(Icons.Default.FilterList, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Icon(Icons.Default.UnfoldLess, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                                BottomTab.OUTPUT -> {
+                                    Icon(Icons.Default.FilterList, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Icon(Icons.Default.Lock, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                                BottomTab.TERMINAL -> { /* terminal has its own internal header with + and menu */ }
+                            }
+                            // "..." — context-aware menu per tab, rendered in root Box (z-order fix)
+                            Icon(Icons.Default.MoreHoriz, null, tint = TabTextInactive,
+                                modifier = Modifier.size(16.dp).clickable { showPanelMenu = true })
+                            Spacer(Modifier.width(6.dp))
+                            Box(Modifier.width(1.dp).height(16.dp).background(DividerColor))
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.Default.OpenInFull, null, tint = TabTextInactive,
+                                modifier = Modifier.size(16.dp).clickable {
+                                    bottomPanelHeight = if (bottomPanelHeight > totalHeight * 0.7f) 300f else totalHeight * 0.85f
+                                    bottomPanelVisible = true
+                                })
+                            Spacer(Modifier.width(6.dp))
+                            // Close = COLLAPSE only. Panel stays in tree, terminal lives on.
+                            Icon(Icons.Default.Close, null, tint = TabTextInactive,
+                                modifier = Modifier.size(16.dp).clickable { bottomPanelVisible = false })
+                            Spacer(Modifier.width(8.dp))
+                        }
+
+                        // Panel content — height animates to 0 when collapsed, never removed
+                        Column(Modifier.fillMaxWidth().height(animatedBh).background(PanelBg)) {
+                            HorizontalDivider(color = DividerColor)
+                            Box(Modifier.fillMaxSize()) {
+                                // All three panels ALWAYS composed — only alpha changes.
+                                // This means Terminal session, scroll position, command history
+                                // are all preserved when switching tabs or collapsing the panel.
+                                Box(
+                                    Modifier.fillMaxSize()
+                                        .graphicsLayer { alpha = if (activeBottomTab == BottomTab.TERMINAL) 1f else 0f }
+                                        .then(if (activeBottomTab == BottomTab.TERMINAL) Modifier else Modifier.pointerInput(Unit) {})
+                                ) {
+                                    TerminalPane()
+                                }
+                                Box(
+                                    Modifier.fillMaxSize()
+                                        .graphicsLayer { alpha = if (activeBottomTab == BottomTab.PROBLEMS) 1f else 0f }
+                                        .then(if (activeBottomTab == BottomTab.PROBLEMS) Modifier else Modifier.pointerInput(Unit) {})
+                                ) {
+                                    ProblemsPanel()
+                                }
+                                Box(
+                                    Modifier.fillMaxSize()
+                                        .graphicsLayer { alpha = if (activeBottomTab == BottomTab.OUTPUT) 1f else 0f }
+                                        .then(if (activeBottomTab == BottomTab.OUTPUT) Modifier else Modifier.pointerInput(Unit) {})
+                                ) {
+                                    OutputPanel()
                                 }
                             }
                         }
@@ -329,7 +363,9 @@ fun ProjectShellScreen(
                 Modifier.fillMaxWidth().height(22.dp).background(StatusBarBg).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF424242), modifier = Modifier.size(14.dp).clickable { showBottomPanel = !showBottomPanel })
+                // Toggle bottom panel visibility
+                Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF424242),
+                    modifier = Modifier.size(14.dp).clickable { bottomPanelVisible = !bottomPanelVisible })
                 Spacer(Modifier.width(4.dp))
                 Icon(Icons.Default.Close, null, tint = Color(0xFF424242), modifier = Modifier.size(12.dp))
                 Text(" 0", color = Color(0xFF424242), fontSize = 11.sp)
@@ -457,7 +493,7 @@ fun ProjectShellScreen(
             }
         }
 
-        // More menu (···)
+        // More menu (··· in activity bar)
         if (showMoreMenu) {
             Box(Modifier.fillMaxSize().clickable { showMoreMenu = false }) {
                 Card(
@@ -484,46 +520,32 @@ fun ProjectShellScreen(
         if (showPersonMenu) {
             Box(Modifier.fillMaxSize().clickable { showPersonMenu = false; showPersonSubMenu = false }) {
                 Card(
-                    Modifier.align(Alignment.BottomStart).padding(start = 52.dp, bottom = 56.dp).width(280.dp).clickable { },
+                    Modifier.align(Alignment.BottomStart).padding(start = 52.dp, bottom = 60.dp).width(220.dp).clickable { },
                     elevation = CardDefaults.cardElevation(8.dp),
                     colors = CardDefaults.cardColors(containerColor = FloatingMenuBg),
                     shape = RoundedCornerShape(4.dp),
                 ) {
                     Column(Modifier.padding(vertical = 4.dp)) {
-                        Row(
-                            Modifier.fillMaxWidth().clickable { showPersonSubMenu = !showPersonSubMenu }
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text("Add Account", fontSize = 13.sp, color = FloatingMenuText)
-                            Icon(Icons.Default.ChevronRight, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Accounts", fontSize = 13.sp, color = FloatingMenuText, fontWeight = FontWeight.Medium)
                         }
                         HorizontalDivider(color = DividerColor)
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Check, null, tint = FloatingMenuText, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Settings Sync is Off", fontSize = 13.sp, color = FloatingMenuText)
+                        Row(Modifier.fillMaxWidth().clickable { showPersonSubMenu = !showPersonSubMenu }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Turn on Settings Sync…", fontSize = 13.sp, color = FloatingMenuText)
+                            Icon(Icons.Default.ChevronRight, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
                         }
-                        listOf("Turn on Cloud Changes...", "Manage Extension Account Preferences...").forEach { item ->
-                            Row(Modifier.fillMaxWidth().clickable { showPersonMenu = false }.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                Text(item, fontSize = 13.sp, color = FloatingMenuText)
-                            }
+                        Row(Modifier.fillMaxWidth().clickable { showPersonMenu = false }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Text("Sign in with GitHub", fontSize = 13.sp, color = FloatingMenuText)
                         }
-                    }
-                }
-                if (showPersonSubMenu) {
-                    Card(
-                        Modifier.align(Alignment.BottomStart).padding(start = 284.dp, bottom = 120.dp).width(220.dp).clickable { },
-                        elevation = CardDefaults.cardElevation(8.dp),
-                        colors = CardDefaults.cardColors(containerColor = FloatingMenuBg),
-                        shape = RoundedCornerShape(4.dp),
-                    ) {
-                        Column(Modifier.padding(vertical = 4.dp)) {
-                            listOf("Manage Trusted Extensions", "Manage Trusted MCP Servers", "Sign Out").forEach { item ->
-                                Row(Modifier.fillMaxWidth().clickable { showPersonMenu = false; showPersonSubMenu = false }.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                    Text(item, fontSize = 13.sp, color = FloatingMenuText)
-                                }
-                            }
+                        Row(Modifier.fillMaxWidth().clickable { showPersonMenu = false }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Text("Sign in with Microsoft", fontSize = 13.sp, color = FloatingMenuText)
                         }
                     }
                 }
@@ -534,56 +556,31 @@ fun ProjectShellScreen(
         if (showGearMenu) {
             Box(Modifier.fillMaxSize().clickable { showGearMenu = false; showGearThemeMenu = false }) {
                 Card(
-                    Modifier.align(Alignment.BottomStart).padding(start = 52.dp, bottom = 28.dp).width(280.dp).clickable { },
+                    Modifier.align(Alignment.BottomStart).padding(start = 52.dp, bottom = 26.dp).width(220.dp).clickable { },
                     elevation = CardDefaults.cardElevation(8.dp),
                     colors = CardDefaults.cardColors(containerColor = FloatingMenuBg),
                     shape = RoundedCornerShape(4.dp),
                 ) {
                     Column(Modifier.padding(vertical = 4.dp)) {
-                        Row(Modifier.fillMaxWidth().clickable { showGearMenu = false; showCommandPalette = true }.padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Command Palette...", fontSize = 13.sp, color = FloatingMenuText)
-                            Text("Ctrl+Shift+P", fontSize = 11.sp, color = TabTextInactive)
-                        }
-                        listOf("Profiles", "Settings", "Keyboard Shortcuts", "Snippets", "Tasks").forEach { item ->
-                            Row(Modifier.fillMaxWidth().clickable { showGearMenu = false }.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        listOf("Settings", "Extensions", "Keyboard Shortcuts", "User Snippets", "User Tasks").forEach { item ->
+                            Row(Modifier.fillMaxWidth().clickable { showGearMenu = false }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)) {
                                 Text(item, fontSize = 13.sp, color = FloatingMenuText)
                             }
                         }
-                        Row(
-                            Modifier.fillMaxWidth().background(if (showGearThemeMenu) Color(0xFFE8E8E8) else Color.Transparent)
-                                .clickable { showGearThemeMenu = !showGearThemeMenu }.padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically,
-                        ) {
+                        HorizontalDivider(color = DividerColor)
+                        Row(Modifier.fillMaxWidth().clickable { showGearThemeMenu = !showGearThemeMenu }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Themes", fontSize = 13.sp, color = FloatingMenuText)
                             Icon(Icons.Default.ChevronRight, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
                         }
-                        HorizontalDivider(color = DividerColor)
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Check, null, tint = FloatingMenuText, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Settings Sync is On", fontSize = 13.sp, color = FloatingMenuText)
-                        }
-                        Row(Modifier.fillMaxWidth().clickable { showGearMenu = false }.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                            Text("Switch to Insiders Version...", fontSize = 13.sp, color = FloatingMenuText)
-                        }
-                    }
-                }
-                if (showGearThemeMenu) {
-                    Card(
-                        Modifier.align(Alignment.BottomStart).padding(start = 284.dp, bottom = 180.dp).width(220.dp).clickable { },
-                        elevation = CardDefaults.cardElevation(8.dp),
-                        colors = CardDefaults.cardColors(containerColor = FloatingMenuBg),
-                        shape = RoundedCornerShape(4.dp),
-                    ) {
-                        Column(Modifier.padding(vertical = 4.dp)) {
-                            Row(Modifier.fillMaxWidth().clickable { showGearMenu = false; showGearThemeMenu = false; showColorTheme = true }.padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        if (showGearThemeMenu) {
+                            HorizontalDivider(color = DividerColor)
+                            Row(Modifier.fillMaxWidth().clickable { showColorTheme = true; showGearMenu = false }
+                                .padding(horizontal = 24.dp, vertical = 8.dp)) {
                                 Text("Color Theme", fontSize = 13.sp, color = FloatingMenuText)
-                                Text("Ctrl+K Ctrl+T", fontSize = 11.sp, color = TabTextInactive)
-                            }
-                            listOf("File Icon Theme", "Product Icon Theme").forEach { item ->
-                                Row(Modifier.fillMaxWidth().clickable { showGearMenu = false }.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                    Text(item, fontSize = 13.sp, color = FloatingMenuText)
-                                }
                             }
                         }
                     }
@@ -591,42 +588,85 @@ fun ProjectShellScreen(
             }
         }
 
-        // Run/Debug menu
+        // Run/Debug panel menu
         if (showRunMenu) {
             Box(Modifier.fillMaxSize().clickable { showRunMenu = false }) {
                 Card(
-                    Modifier.align(Alignment.TopStart).padding(start = 200.dp, top = 100.dp).width(180.dp).clickable { },
+                    Modifier.align(Alignment.TopStart).padding(start = 52.dp, top = 152.dp).width(200.dp).clickable { },
                     elevation = CardDefaults.cardElevation(8.dp),
                     colors = CardDefaults.cardColors(containerColor = FloatingMenuBg),
                     shape = RoundedCornerShape(4.dp),
                 ) {
                     Column(Modifier.padding(vertical = 4.dp)) {
-                        Row(Modifier.fillMaxWidth().clickable { showRunMenu = false }.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                            Text("Debug Console", fontSize = 13.sp, color = FloatingMenuText)
-                        }
-                        Row(Modifier.fillMaxWidth().clickable { showRunMenu = false }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Check, null, tint = FloatingMenuText, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Run", fontSize = 13.sp, color = TabTextInactive)
+                        listOf("Add Configuration…","Open launch.json").forEach { item ->
+                            Row(Modifier.fillMaxWidth().clickable { showRunMenu = false }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                Text(item, fontSize = 13.sp, color = FloatingMenuText)
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Terminal context menu
-        if (showTerminalMenu) {
-            Box(Modifier.fillMaxSize().clickable { showTerminalMenu = false }) {
+        // ── PANEL "..." MENU ─────────────────────────────────────────────────────
+        // Rendered at the ROOT Box level so it always appears ABOVE the panel.
+        // Context-aware: shows different options depending on the active tab,
+        // matching VS Code behaviour.
+        if (showPanelMenu) {
+            Box(Modifier.fillMaxSize().clickable { showPanelMenu = false }) {
                 Card(
-                    Modifier.align(Alignment.BottomEnd).padding(end = 8.dp, bottom = 60.dp).width(240.dp).clickable { },
+                    Modifier.align(Alignment.BottomEnd).padding(end = 8.dp, bottom = 60.dp).width(260.dp).clickable { },
                     elevation = CardDefaults.cardElevation(8.dp),
                     colors = CardDefaults.cardColors(containerColor = FloatingMenuBg),
                     shape = RoundedCornerShape(4.dp),
                 ) {
                     Column(Modifier.padding(vertical = 4.dp)) {
-                        listOf("Scroll to Previous Command","Scroll to Next Command","Clear Terminal","Run Active File","Run Selected Text","Start Dictation").forEach { item ->
-                            Row(Modifier.fillMaxWidth().clickable { showTerminalMenu = false }.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                Text(item, fontSize = 13.sp, color = if (item in listOf("Scroll to Previous Command","Scroll to Next Command")) TabTextInactive else FloatingMenuText)
+                        when (activeBottomTab) {
+                            BottomTab.TERMINAL -> {
+                                listOf(
+                                    "New Terminal",
+                                    "Split Terminal",
+                                    "Clear Terminal",
+                                    "Scroll to Previous Command",
+                                    "Scroll to Next Command",
+                                    "Run Active File",
+                                    "Run Selected Text",
+                                    "Start Dictation",
+                                ).forEach { item ->
+                                    val dimmed = item in listOf("Scroll to Previous Command", "Scroll to Next Command")
+                                    Row(Modifier.fillMaxWidth().clickable { showPanelMenu = false }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                        Text(item, fontSize = 13.sp, color = if (dimmed) TabTextInactive else FloatingMenuText)
+                                    }
+                                }
+                            }
+                            BottomTab.OUTPUT -> {
+                                listOf(
+                                    "Clear Output",
+                                    "Open Output in Editor",
+                                    "Toggle Auto Scroll",
+                                    "Show Output Channels",
+                                ).forEach { item ->
+                                    Row(Modifier.fillMaxWidth().clickable { showPanelMenu = false }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                        Text(item, fontSize = 13.sp, color = FloatingMenuText)
+                                    }
+                                }
+                            }
+                            BottomTab.PROBLEMS -> {
+                                listOf(
+                                    "Copy All Problems",
+                                    "Filter by Type",
+                                    "Collapse All",
+                                    "Show Errors Only",
+                                    "Show Warnings Only",
+                                ).forEach { item ->
+                                    Row(Modifier.fillMaxWidth().clickable { showPanelMenu = false }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                        Text(item, fontSize = 13.sp, color = FloatingMenuText)
+                                    }
+                                }
                             }
                         }
                     }
@@ -645,7 +685,8 @@ fun ProjectShellScreen(
                 ) {
                     Column(Modifier.padding(vertical = 4.dp)) {
                         listOf("Open Editors","No Folder Opened","Outline","Timeline").forEach { item ->
-                            Row(Modifier.fillMaxWidth().clickable { showExplorerMore = false }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().clickable { showExplorerMore = false }
+                                .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Check, null, tint = FloatingMenuText, modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text(item, fontSize = 13.sp, color = FloatingMenuText)
@@ -689,114 +730,75 @@ private fun ExplorerSidePanel(onOpenFile: (String) -> Unit, onMoreMenu: () -> Un
 }
 
 @Composable
-private fun SectionRow(title: String, expanded: Boolean, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.ChevronRight, null, tint = SectionHeaderText, modifier = Modifier.size(16.dp))
+private fun SectionRow(title: String, expanded: Boolean, onToggle: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable { onToggle() }.padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(if (expanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight, null,
+            tint = TabTextInactive, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(4.dp))
-        Text(title, fontSize = 11.sp, color = SectionHeaderText, fontWeight = FontWeight.Bold)
+        Text(title, fontSize = 11.sp, color = SectionHeaderText, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
 private fun SearchPanel() {
     Column(Modifier.fillMaxSize().padding(8.dp)) {
-        Text("SEARCH", fontSize = 11.sp, color = SectionHeaderText)
-        HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 8.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.ChevronRight, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(4.dp))
-            OutlinedTextField(value = "", onValueChange = {}, modifier = Modifier.weight(1f).height(40.dp),
-                placeholder = { Text("Search", fontSize = 13.sp) }, singleLine = true)
-            Spacer(Modifier.width(4.dp))
-            Text("Aa", fontSize = 11.sp, color = TabTextInactive, modifier = Modifier.border(1.dp, DividerColor, RoundedCornerShape(3.dp)).padding(3.dp))
-            Spacer(Modifier.width(2.dp))
-            Text("ab", fontSize = 11.sp, color = Color(0xFF007ACC), modifier = Modifier.border(1.dp, Color(0xFF007ACC), RoundedCornerShape(3.dp)).background(Color(0xFFDCEDFD)).padding(3.dp))
-            Spacer(Modifier.width(2.dp))
-            Text(".*", fontSize = 11.sp, color = TabTextInactive, modifier = Modifier.border(1.dp, DividerColor, RoundedCornerShape(3.dp)).padding(3.dp))
-        }
+        Text("SEARCH", fontSize = 11.sp, color = SectionHeaderText, modifier = Modifier.padding(bottom = 8.dp))
+        OutlinedTextField(value = "", onValueChange = {}, modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Search", fontSize = 13.sp) }, singleLine = true)
+        Spacer(Modifier.height(8.dp))
+        Text("No results", fontSize = 12.sp, color = TabTextInactive)
     }
 }
 
 @Composable
 private fun GitSidePanel() {
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.padding(8.dp)) {
-            Text("SOURCE CONTROL", fontSize = 11.sp, color = SectionHeaderText)
-            HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 8.dp))
-            Text("You can open a remote repository or pull request without cloning.", fontSize = 12.sp, color = TabTextInactive)
-            Spacer(Modifier.height(12.dp))
-            Button(onClick = {}, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = BlueBtn)) {
-                Text("Open Remote Repository", fontSize = 12.sp)
-            }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("SOURCE CONTROL", fontSize = 11.sp, color = SectionHeaderText, modifier = Modifier.weight(1f))
+            Icon(Icons.Default.MoreHoriz, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
         }
         HorizontalDivider(color = DividerColor)
-        Box(Modifier.fillMaxSize()) { SourceControlPane() }
+        Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {
+            Text("No source control providers registered.", fontSize = 12.sp, color = TabTextInactive)
+        }
     }
 }
 
 @Composable
 private fun RunDebugPanel(onMoreMenu: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(8.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("RUN AND DEBUG: RUN", fontSize = 11.sp, color = SectionHeaderText, modifier = Modifier.weight(1f))
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("RUN AND DEBUG", fontSize = 11.sp, color = SectionHeaderText, modifier = Modifier.weight(1f))
             Icon(Icons.Default.MoreHoriz, null, tint = TabTextInactive, modifier = Modifier.size(16.dp).clickable { onMoreMenu() })
         }
-        HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 8.dp))
-        Text("All debug extensions are disabled. Enable a debug extension or install a new one from the Marketplace.", fontSize = 12.sp, color = TabTextInactive)
-        Spacer(Modifier.height(8.dp))
-        Text("Run and Debug are not available in the web editor. Continue in an environment that can run code, like a codespace or VS Code Desktop.", fontSize = 12.sp, color = TabTextInactive)
+        HorizontalDivider(color = DividerColor)
+        Column(Modifier.padding(16.dp)) {
+            Text("No launch configuration found.", fontSize = 12.sp, color = TabTextInactive)
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = BlueBtn), modifier = Modifier.fillMaxWidth()) {
+                Text("Add Configuration…", fontSize = 12.sp)
+            }
+        }
     }
 }
 
 @Composable
 private fun ExtensionsPanel() {
-    var query by remember { mutableStateOf("") }
-    var installedExp by remember { mutableStateOf(false) }
-    var popularExp by remember { mutableStateOf(true) }
-    var recommendedExp by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("EXTENSIONS", fontSize = 11.sp, color = SectionHeaderText, modifier = Modifier.weight(1f))
-            Icon(Icons.Default.Refresh, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(8.dp))
-            Icon(Icons.Default.MoreHoriz, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
         }
-        OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).height(36.dp),
-            placeholder = { Text("Search Extensions in Marketplace", fontSize = 12.sp) }, singleLine = true)
-        HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 4.dp))
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            ExtSection("INSTALLED", installedExp, 0) { installedExp = !installedExp }
-            ExtSection("POPULAR", popularExp, -1) { popularExp = !popularExp }
-            if (popularExp) {
-                listOf("Python" to "Microsoft","Pylance" to "Microsoft","Prettier" to "Prettier","GitLens" to "GitKraken","Docker" to "Microsoft").forEach { (n, a) ->
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(36.dp).background(BlueBtn, RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
-                            Text(n.first().toString(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(n, fontSize = 13.sp, color = TabText, fontWeight = FontWeight.Medium)
-                            Text(a, fontSize = 11.sp, color = TabTextInactive)
-                        }
-                        Button(onClick = {}, modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = BlueBtn)) { Text("Install", fontSize = 11.sp) }
-                    }
-                }
-            }
-            ExtSection("RECOMMENDED", recommendedExp, 5) { recommendedExp = !recommendedExp }
-        }
-    }
-}
-
-@Composable
-private fun ExtSection(title: String, expanded: Boolean, count: Int, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.ChevronRight, null, tint = SectionHeaderText, modifier = Modifier.size(16.dp))
-        Text(title, fontSize = 11.sp, color = SectionHeaderText, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).padding(start = 4.dp))
-        if (count >= 0) {
-            Box(Modifier.size(18.dp).clip(CircleShape).background(Color(0xFF007ACC)), contentAlignment = Alignment.Center) {
-                Text("$count", fontSize = 10.sp, color = Color.White)
-            }
+        HorizontalDivider(color = DividerColor)
+        Column(Modifier.fillMaxSize().padding(8.dp)) {
+            OutlinedTextField(value = "", onValueChange = {}, modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Search Extensions…", fontSize = 13.sp) }, singleLine = true)
+            Spacer(Modifier.height(8.dp))
+            Text("INSTALLED", fontSize = 11.sp, color = SectionHeaderText)
+            Spacer(Modifier.height(4.dp))
+            Text("No extensions installed.", fontSize = 12.sp, color = TabTextInactive)
         }
     }
 }
@@ -804,7 +806,6 @@ private fun ExtSection(title: String, expanded: Boolean, count: Int, onClick: ()
 @Composable
 private fun ProblemsPanel() {
     Column(Modifier.fillMaxSize().background(Color(0xFFFFFFFF))) {
-        // Filter bar
         Row(
             Modifier.fillMaxWidth().background(Color(0xFFF3F3F3)).padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -836,10 +837,7 @@ private fun ProblemsPanel() {
 @Composable
 private fun OutputPanel() {
     var filterText by remember { mutableStateOf("") }
-    val outputLog = remember { mutableStateListOf<String>() }
-
     Column(Modifier.fillMaxSize().background(Color(0xFFFFFFFF))) {
-        // Filter + Tasks bar
         Row(
             Modifier.fillMaxWidth().background(Color(0xFFF3F3F3)).padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -855,36 +853,26 @@ private fun OutputPanel() {
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = Color(0xFF333333)),
                 decorationBox = { inner ->
-                    if (filterText.isEmpty()) {
-                        Text("Filter (e.g. text, !excludeText, t...)", fontSize = 11.sp, color = Color(0xFFAAAAAA))
-                    }
+                    if (filterText.isEmpty()) Text("Filter (e.g. text, !excludeText, t...)", fontSize = 11.sp, color = Color(0xFFAAAAAA))
                     inner()
                 },
                 singleLine = true,
             )
             Row(
-                Modifier
-                    .background(Color(0xFFFFFFFF), RoundedCornerShape(3.dp))
+                Modifier.background(Color(0xFFFFFFFF), RoundedCornerShape(3.dp))
                     .border(1.dp, Color(0xFFD0D0D0), RoundedCornerShape(3.dp))
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text("Tasks", fontSize = 12.sp, color = Color(0xFF333333))
-                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color(0xFF717171), modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Default.ArrowDropDown, null, tint = Color(0xFF333333), modifier = Modifier.size(16.dp))
             }
         }
         HorizontalDivider(color = Color(0xFFD0D0D0))
-        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
-            if (outputLog.isEmpty()) {
-                item { Text("", fontSize = 13.sp, color = Color(0xFF717171)) }
-            } else {
-                items(outputLog) { line ->
-                    Text(line, fontSize = 13.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF333333),
-                        modifier = Modifier.padding(vertical = 1.dp))
-                }
-            }
+        Box(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp), contentAlignment = Alignment.TopStart) {
+            Text("", fontSize = 12.sp, color = Color(0xFF1E1E1E),
+                fontFamily = FontFamily.Monospace)
         }
     }
 }
-
