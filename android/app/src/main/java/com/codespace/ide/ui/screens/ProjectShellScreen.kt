@@ -202,7 +202,7 @@ fun ProjectShellScreen(
 
                         Box(Modifier.weight(1f).fillMaxWidth()) {
                             if (activeEditorTab != null) {
-                                EditorPane(fileName = activeEditorTab ?: "")
+                                EditorPane(openFilePath = activeEditorTab)
                             } else {
                                 Box(Modifier.fillMaxSize().background(BgColor), contentAlignment = Alignment.Center) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
