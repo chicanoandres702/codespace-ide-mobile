@@ -1,109 +1,227 @@
 package com.codespace.ide.ui.panes
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.VerticalSplit
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.codespace.ide.domain.EditorTab
 import com.codespace.ide.domain.Language
 import com.codespace.ide.editor.CodeEditor
+import java.io.File
+
+private val TabBarBg = Color(0xFFECECEC)
+private val TabActiveBg = Color(0xFFFFFFFF)
+private val TabInactiveBg = Color(0xFFECECEC)
+private val TabActiveIndicator = Color(0xFF007ACC)
+private val TabText = Color(0xFF333333)
+private val TabTextInactive = Color(0xFF717171)
+private val DividerColor = Color(0xFFE0E0E0)
+
+fun detectLanguage(name: String): Language = when {
+    name.endsWith(".kt") || name.endsWith(".kts") -> Language.KOTLIN
+    name.endsWith(".py") -> Language.PYTHON
+    name.endsWith(".ts") || name.endsWith(".tsx") -> Language.TYPESCRIPT
+    name.endsWith(".js") || name.endsWith(".jsx") -> Language.JAVASCRIPT
+    name.endsWith(".java") -> Language.JAVA
+    name.endsWith(".json") -> Language.JSON
+    name.endsWith(".md") -> Language.MARKDOWN
+    name.endsWith(".html") || name.endsWith(".htm") -> Language.HTML
+    name.endsWith(".css") -> Language.CSS
+    name.endsWith(".xml") -> Language.XML
+    name.endsWith(".sh") -> Language.SHELL
+    name.endsWith(".c") || name.endsWith(".h") -> Language.C
+    name.endsWith(".cpp") || name.endsWith(".cc") -> Language.CPP
+    name.endsWith(".rs") -> Language.RUST
+    name.endsWith(".go") -> Language.GO
+    else -> Language.PLAINTEXT
+}
+
+fun loadFileContent(path: String): String = try {
+    File(path).readText()
+} catch (e: Exception) {
+    "// Could not read file: ${e.message}"
+}
 
 /**
- * Multi-tab editor with optional vertical split. Each tab carries its own content,
- * language, and dirty state. This pane wires the [CodeEditor] composable into tabs.
+ * Multi-tab editor. Tabs are opened by the Explorer passing a full file path.
+ * Actual file content is read from disk and displayed in [CodeEditor].
+ * Saving writes back to disk.
  */
 @Composable
-fun EditorPane() {
-    val tabs = remember {
-        mutableStateListOf(
-            EditorTab(
-                id = "t1", path = "src/index.ts", name = "index.ts",
-                content = SAMPLE_TS, language = Language.TYPESCRIPT,
-            ),
-            EditorTab(
-                id = "t2", path = "main.py", name = "main.py",
-                content = SAMPLE_PY, language = Language.PYTHON,
-            ),
-        )
-    }
-    var activeId by remember { mutableStateOf("t1") }
+fun EditorPane(
+    openFilePath: String? = null,
+    onFileOpened: (() -> Unit)? = null,
+) {
+    val context = LocalContext.current
+    val tabs = remember { mutableStateListOf<EditorTab>() }
+    var activeId by remember { mutableStateOf<String?>(null) }
     var splitId by remember { mutableStateOf<String?>(null) }
+
+    // Open a new tab when the explorer requests a file
+    LaunchedEffect(openFilePath) {
+        if (openFilePath != null) {
+            val existing = tabs.firstOrNull { it.path == openFilePath }
+            if (existing != null) {
+                activeId = existing.id
+            } else {
+                val name = File(openFilePath).name
+                val content = loadFileContent(openFilePath)
+                val tab = EditorTab(
+                    id = openFilePath,
+                    path = openFilePath,
+                    name = name,
+                    content = content,
+                    language = detectLanguage(name),
+                )
+                tabs.add(tab)
+                activeId = tab.id
+            }
+            onFileOpened?.invoke()
+        }
+    }
+
+    // Seed with sample tabs if nothing is open yet (first launch)
+    LaunchedEffect(Unit) {
+        if (tabs.isEmpty()) {
+            tabs.add(
+                EditorTab(
+                    id = "sample_ts", path = "src/index.ts", name = "index.ts",
+                    content = SAMPLE_TS, language = Language.TYPESCRIPT,
+                )
+            )
+            tabs.add(
+                EditorTab(
+                    id = "sample_py", path = "main.py", name = "main.py",
+                    content = SAMPLE_PY, language = Language.PYTHON,
+                )
+            )
+            activeId = "sample_ts"
+        }
+    }
 
     Column(Modifier.fillMaxSize()) {
         // Tab bar
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .background(MaterialTheme.colorScheme.surface),
-        ) {
-            tabs.forEach { tab ->
-                Row(
-                    Modifier
-                        .clickable { activeId = tab.id }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                ) {
-                    Text(
-                        (if (tab.isDirty) "● " else "") + tab.name,
-                        fontWeight = if (tab.id == activeId) FontWeight.Bold else FontWeight.Normal,
-                    )
-                    IconButton(onClick = { tabs.remove(tab) }, modifier = Modifier.padding(0.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.padding(2.dp))
+        if (tabs.isNotEmpty()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(35.dp)
+                    .background(TabBarBg)
+                    .horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                tabs.forEach { tab ->
+                    val isActive = tab.id == activeId
+                    Column(
+                        Modifier
+                            .clickable { activeId = tab.id }
+                            .background(if (isActive) TabActiveBg else TabInactiveBg)
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                (if (tab.isDirty) "● " else "") + tab.name,
+                                fontSize = 13.sp,
+                                color = if (isActive) TabText else TabTextInactive,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.widthIn(max = 120.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = TabTextInactive,
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clickable {
+                                        val idx = tabs.indexOfFirst { it.id == tab.id }
+                                        tabs.remove(tab)
+                                        if (activeId == tab.id) {
+                                            activeId = tabs.getOrNull(idx - 1)?.id ?: tabs.firstOrNull()?.id
+                                        }
+                                        if (splitId == tab.id) splitId = null
+                                    },
+                            )
+                        }
+                        if (isActive) Box(Modifier.fillMaxWidth().height(1.dp).background(TabActiveIndicator))
                     }
+                    Box(Modifier.width(1.dp).height(35.dp).background(DividerColor))
+                }
+                // Split view button
+                IconButton(onClick = { splitId = if (splitId == null) activeId else null }, modifier = Modifier.size(35.dp)) {
+                    Icon(Icons.Default.VerticalSplit, contentDescription = "Split", tint = TabTextInactive, modifier = Modifier.size(16.dp))
                 }
             }
-            IconButton(onClick = { splitId = if (splitId == null) activeId else null }) {
-                Icon(Icons.Default.VerticalSplit, contentDescription = "Split")
-            }
+            HorizontalDivider(color = DividerColor)
         }
-        HorizontalDivider()
 
         val active = tabs.firstOrNull { it.id == activeId } ?: tabs.firstOrNull()
-        Column(Modifier.fillMaxSize()) {
-            active?.let { tab ->
-                CodeEditor(
-                    content = tab.content,
-                    language = tab.language,
-                    onContentChange = { newText ->
-                        val idx = tabs.indexOfFirst { it.id == tab.id }
-                        if (idx >= 0) tabs[idx] = tab.copy(content = newText, isDirty = true)
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-                val split = splitId?.let { id -> tabs.firstOrNull { it.id == id } }
-                if (split != null) {
-                    HorizontalDivider()
+        if (active != null) {
+            val splitTab = splitId?.let { id -> tabs.firstOrNull { it.id == id && it.id != active.id } }
+            if (splitTab != null) {
+                Row(Modifier.fillMaxSize()) {
                     CodeEditor(
-                        content = split.content,
-                        language = split.language,
+                        content = active.content,
+                        language = active.language,
+                        onContentChange = { newText ->
+                            val idx = tabs.indexOfFirst { it.id == active.id }
+                            if (idx >= 0) tabs[idx] = active.copy(content = newText, isDirty = true)
+                            // Save to disk if real file
+                            if (active.path.startsWith("/")) {
+                                try { File(active.path).writeText(newText) } catch (_: Exception) {}
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    Box(Modifier.width(1.dp).fillMaxHeight().background(DividerColor))
+                    CodeEditor(
+                        content = splitTab.content,
+                        language = splitTab.language,
                         onContentChange = {},
                         modifier = Modifier.weight(1f),
                     )
                 }
+            } else {
+                CodeEditor(
+                    content = active.content,
+                    language = active.language,
+                    onContentChange = { newText ->
+                        val idx = tabs.indexOfFirst { it.id == active.id }
+                        if (idx >= 0) tabs[idx] = active.copy(content = newText, isDirty = true)
+                        if (active.path.startsWith("/")) {
+                            try { File(active.path).writeText(newText) } catch (_: Exception) {}
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        } else {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    "</>\nCodeSpace IDE",
+                    fontSize = 48.sp,
+                    color = Color(0xFFE0E0E0),
+                    fontWeight = FontWeight.Light,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
             }
         }
     }
@@ -117,7 +235,7 @@ interface User {
 }
 
 async function greet(user: User): Promise<string> {
-  const message = `Hello, ${'$'}{user.name}!`; // template string
+  const message = `Hello, ${'$'}{user.name}!`;
   return message;
 }
 

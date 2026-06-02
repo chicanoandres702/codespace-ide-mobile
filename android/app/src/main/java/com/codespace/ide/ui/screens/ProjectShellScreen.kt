@@ -214,45 +214,69 @@ fun ProjectShellScreen(
                             )
                             val bh = with(density) { bottomPanelHeight.toDp() }.coerceIn(60.dp, 500.dp)
                             Column(Modifier.fillMaxWidth().height(bh).background(PanelBg)) {
-                                Row(Modifier.fillMaxWidth().background(TabBarBg).height(35.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    Modifier.fillMaxWidth().background(TabBarBg).height(35.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    // PROBLEMS | OUTPUT | TERMINAL tabs
                                     BottomTab.entries.forEach { tab ->
                                         val isActive = tab == activeBottomTab
-                                        Column(Modifier.clickable { activeBottomTab = tab }.fillMaxHeight(), verticalArrangement = Arrangement.Bottom) {
+                                        Column(
+                                            Modifier.clickable { activeBottomTab = tab }.fillMaxHeight(),
+                                            verticalArrangement = Arrangement.Bottom,
+                                        ) {
                                             Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                                Text(tab.name, fontSize = 12.sp, color = if (isActive) TabText else TabTextInactive,
-                                                    fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal)
+                                                Text(
+                                                    tab.name,
+                                                    fontSize = 12.sp,
+                                                    color = if (isActive) TabText else TabTextInactive,
+                                                    fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
+                                                )
                                             }
                                             if (isActive) Box(Modifier.fillMaxWidth().height(1.dp).background(TabActiveIndicator))
                                             else Spacer(Modifier.height(1.dp))
                                         }
                                     }
                                     Spacer(Modifier.weight(1f))
-                                    if (activeBottomTab == BottomTab.PROBLEMS) {
-                                        Text("Filter", fontSize = 10.sp, color = TabTextInactive, modifier = Modifier.border(1.dp, DividerColor, RoundedCornerShape(2.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
-                                        Spacer(Modifier.width(4.dp))
+                                    // Context icons per tab
+                                    when (activeBottomTab) {
+                                        BottomTab.PROBLEMS -> {
+                                            Icon(Icons.Default.FilterList, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                            Icon(Icons.Default.UnfoldLess, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                        }
+                                        BottomTab.OUTPUT -> {
+                                            Icon(Icons.Default.FilterList, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                            Icon(Icons.Default.Lock, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                        }
+                                        BottomTab.TERMINAL -> { /* no extra icons */ }
                                     }
-                                    if (activeBottomTab == BottomTab.TERMINAL) {
-                                        Icon(Icons.Default.MoreHoriz, null, tint = TabTextInactive,
-                                            modifier = Modifier.size(16.dp).clickable { showTerminalMenu = true })
-                                        Spacer(Modifier.width(4.dp))
-                                    }
+                                    // Always-visible: ... | expand | close
+                                    Icon(Icons.Default.MoreHoriz, null, tint = TabTextInactive,
+                                        modifier = Modifier.size(16.dp).clickable { showTerminalMenu = true })
+                                    Spacer(Modifier.width(6.dp))
+                                    Box(Modifier.width(1.dp).height(16.dp).background(DividerColor))
+                                    Spacer(Modifier.width(6.dp))
                                     Icon(Icons.Default.OpenInFull, null, tint = TabTextInactive,
-                                        modifier = Modifier.size(16.dp).clickable { bottomPanelHeight = totalHeight * 0.85f })
-                                    Spacer(Modifier.width(8.dp))
+                                        modifier = Modifier.size(16.dp).clickable {
+                                            bottomPanelHeight = if (bottomPanelHeight > totalHeight * 0.7f) 300f else totalHeight * 0.85f
+                                        })
+                                    Spacer(Modifier.width(6.dp))
                                     Icon(Icons.Default.Close, null, tint = TabTextInactive,
                                         modifier = Modifier.size(16.dp).clickable { showBottomPanel = false })
                                     Spacer(Modifier.width(8.dp))
                                 }
                                 HorizontalDivider(color = DividerColor)
                                 Box(Modifier.fillMaxSize()) {
-                                    // Terminal is always composed to preserve state; only visibility changes
+                                    // Terminal always composed to preserve session state
                                     Box(Modifier.fillMaxSize().then(if (activeBottomTab == BottomTab.TERMINAL) Modifier else Modifier.size(0.dp))) {
                                         TerminalPane()
                                     }
                                     if (activeBottomTab == BottomTab.PROBLEMS) {
-                                        Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {
-                                            Text("No problems have been detected in the workspace.", fontSize = 13.sp, color = TabTextInactive)
-                                        }
+                                        ProblemsPanel()
                                     }
                                     if (activeBottomTab == BottomTab.OUTPUT) {
                                         OutputPanel()
@@ -763,21 +787,49 @@ private fun ExtSection(title: String, expanded: Boolean, count: Int, onClick: ()
 }
 
 @Composable
+private fun ProblemsPanel() {
+    Column(Modifier.fillMaxSize().background(Color(0xFFFFFFFF))) {
+        // Filter bar
+        Row(
+            Modifier.fillMaxWidth().background(Color(0xFFF3F3F3)).padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            androidx.compose.foundation.text.BasicTextField(
+                value = "",
+                onValueChange = {},
+                modifier = Modifier
+                    .weight(1f)
+                    .background(Color(0xFFFFFFFF), RoundedCornerShape(3.dp))
+                    .border(1.dp, Color(0xFFD0D0D0), RoundedCornerShape(3.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = Color(0xFF333333)),
+                decorationBox = { inner ->
+                    Text("Filter (e.g. text, **/\\*.ts, !**/node_modules/**...)", fontSize = 11.sp, color = Color(0xFFAAAAAA))
+                    inner()
+                },
+                singleLine = true,
+            )
+        }
+        HorizontalDivider(color = Color(0xFFD0D0D0))
+        Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {
+            Text("No problems have been detected in the workspace.", fontSize = 13.sp, color = Color(0xFF717171))
+        }
+    }
+}
+
+@Composable
 private fun OutputPanel() {
     var filterText by remember { mutableStateOf("") }
     val outputLog = remember { mutableStateListOf<String>() }
 
-    Column(Modifier.fillMaxSize().background(Color(0xFFF3F3F3))) {
-        // Filter + channel bar (matches VS Code Output tab)
+    Column(Modifier.fillMaxSize().background(Color(0xFFFFFFFF))) {
+        // Filter + Tasks bar
         Row(
-            Modifier
-                .fillMaxWidth()
-                .background(Color(0xFFECECEC))
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+            Modifier.fillMaxWidth().background(Color(0xFFF3F3F3)).padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            // Filter input
             androidx.compose.foundation.text.BasicTextField(
                 value = filterText,
                 onValueChange = { filterText = it },
@@ -795,7 +847,6 @@ private fun OutputPanel() {
                 },
                 singleLine = true,
             )
-            // Channel dropdown (static — Tasks)
             Row(
                 Modifier
                     .background(Color(0xFFFFFFFF), RoundedCornerShape(3.dp))
@@ -809,14 +860,9 @@ private fun OutputPanel() {
             }
         }
         HorizontalDivider(color = Color(0xFFD0D0D0))
-        // Output content (empty by default)
-        LazyColumn(
-            Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp),
-        ) {
+        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
             if (outputLog.isEmpty()) {
-                item {
-                    Text("", fontSize = 13.sp, color = Color(0xFF717171))
-                }
+                item { Text("", fontSize = 13.sp, color = Color(0xFF717171)) }
             } else {
                 items(outputLog) { line ->
                     Text(line, fontSize = 13.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF333333),
