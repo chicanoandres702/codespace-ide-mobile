@@ -43,6 +43,19 @@ object LanguageSpecs {
             types = setOf("int", "str", "float", "bool", "list", "dict", "set", "tuple", "bytes"),
             comments = Triple("#", null.toString(), ""),
         ).copy(blockCommentStart = null, blockCommentEnd = null)
+        Language.KOTLIN -> spec(
+            keywords = setOf(
+                "fun", "val", "var", "class", "object", "interface", "enum", "sealed", "data",
+                "return", "if", "else", "when", "for", "while", "do", "break", "continue",
+                "import", "package", "try", "catch", "finally", "throw", "this", "super",
+                "companion", "override", "private", "public", "protected", "internal",
+                "abstract", "open", "final", "lateinit", "lazy", "by", "in", "is", "as",
+                "null", "true", "false", "suspend", "coroutine", "inline", "reified",
+                "typealias", "init", "constructor",
+            ),
+            types = setOf("Int", "Long", "Double", "Float", "Boolean", "Char", "Byte", "Short",
+                "String", "Unit", "Any", "Nothing", "List", "Map", "Set", "Array", "Pair"),
+        )
         Language.JAVA -> spec(
             keywords = setOf(
                 "public", "private", "protected", "class", "interface", "extends",
@@ -60,6 +73,14 @@ object LanguageSpecs {
                 "switch", "case", "break", "continue", "struct", "class", "public", "private",
                 "protected", "namespace", "using", "template", "typename", "new", "delete",
                 "nullptr", "true", "false", "auto", "include", "define",
+            ),
+        )
+        Language.C -> spec(
+            keywords = setOf(
+                "int", "char", "float", "double", "void", "long", "short", "unsigned",
+                "signed", "const", "static", "return", "if", "else", "for", "while", "do",
+                "switch", "case", "break", "continue", "struct", "union", "enum", "typedef",
+                "sizeof", "include", "define", "ifndef", "ifdef", "endif", "NULL",
             ),
         )
         Language.GO -> spec(
@@ -88,6 +109,17 @@ object LanguageSpecs {
                 "this", "null", "true", "false", "const", "var", "as",
             ),
         )
+        Language.SHELL -> spec(
+            keywords = setOf(
+                "if", "then", "else", "elif", "fi", "for", "in", "do", "done", "while",
+                "case", "esac", "function", "return", "exit", "echo", "export", "source",
+                "local", "readonly", "shift", "trap", "eval", "exec", "alias", "unset",
+                "set", "break", "continue", "true", "false",
+            ),
+            comments = Triple("#", null, null),
+        ).copy(blockCommentStart = null, blockCommentEnd = null)
+        Language.XML -> spec(keywords = emptySet(), comments = Triple("", "<!--", "-->"))
+            .copy(lineComment = null)
         Language.HTML -> spec(keywords = emptySet(), comments = Triple("", "<!--", "-->"))
             .copy(lineComment = null)
         Language.CSS -> spec(keywords = emptySet(), comments = Triple("", "/*", "*/"))
@@ -97,6 +129,6 @@ object LanguageSpecs {
             comments = null,
         )
         Language.MARKDOWN -> spec(keywords = emptySet(), comments = null)
-        Language.PLAIN -> spec(keywords = emptySet(), comments = null)
+        Language.PLAIN, Language.PLAINTEXT -> spec(keywords = emptySet(), comments = null)
     }
 }
