@@ -4,38 +4,29 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +43,7 @@ private const val TERMINAL_PREFS = "terminal_history"
 data class TerminalSession(
     val id: String,
     val name: String,
-    val lines: MutableList<String> = mutableListOf("CodeSpace Terminal — type commands below"),
+    val lines: MutableList<String> = mutableListOf("CodeSpace Terminal — type a command and press Enter"),
     var workingDir: String = "/storage/emulated/0",
 )
 
@@ -61,11 +52,12 @@ fun saveTerminals(context: Context, sessions: List<TerminalSession>, activeId: S
     sessions.forEach { s ->
         val linesArr = JSONArray()
         s.lines.forEach { linesArr.put(it) }
-        arr.put(JSONObject()
-            .put("id", s.id)
-            .put("name", s.name)
-            .put("lines", linesArr)
-            .put("workingDir", s.workingDir)
+        arr.put(
+            JSONObject()
+                .put("id", s.id)
+                .put("name", s.name)
+                .put("lines", linesArr)
+                .put("workingDir", s.workingDir)
         )
     }
     context.getSharedPreferences(TERMINAL_PREFS, Context.MODE_PRIVATE)
@@ -109,6 +101,8 @@ fun TerminalPane() {
     var activeId by remember { mutableStateOf(savedActiveId) }
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val focusRequester = remember { FocusRequester() }
+    var showTerminalMenu by remember { mutableStateOf(false) }
 
     val activeSession = sessions.firstOrNull { it.id == activeId } ?: sessions.firstOrNull()
 
@@ -117,9 +111,7 @@ fun TerminalPane() {
         if (size > 0) listState.animateScrollToItem(size - 1)
     }
 
-    fun saveAll() {
-        saveTerminals(context, sessions, activeId)
-    }
+    fun saveAll() = saveTerminals(context, sessions, activeId)
 
     fun addTerminal() {
         val newId = System.currentTimeMillis().toString()
@@ -133,16 +125,21 @@ fun TerminalPane() {
         if (sessions.size <= 1) return
         val idx = sessions.indexOfFirst { it.id == id }
         sessions.removeAt(idx)
-        if (activeId == id) {
-            activeId = sessions.getOrNull(idx - 1)?.id ?: sessions.first().id
-        }
+        if (activeId == id) activeId = sessions.getOrNull(idx - 1)?.id ?: sessions.first().id
+        saveAll()
+    }
+
+    fun clearTerminal() {
+        val session = sessions.firstOrNull { it.id == activeId } ?: return
+        session.lines.clear()
         saveAll()
     }
 
     fun runCommand(cmd: String) {
         val session = sessions.firstOrNull { it.id == activeId } ?: return
-        if (cmd.isBlank()) return
-        session.lines.add("$ $cmd")
+        val trimmed = cmd.trim()
+        if (trimmed.isBlank()) return
+        session.lines.add("$ $trimmed")
         val sessionIdx = sessions.indexOfFirst { it.id == activeId }
 
         scope.launch {
@@ -150,26 +147,22 @@ fun TerminalPane() {
                 val result = withContext(Dispatchers.IO) {
                     val workingDir = File(session.workingDir)
                     when {
-                        cmd.startsWith("cd ") -> {
-                            val newPath = cmd.substring(3).trim()
-                            val newDir = if (newPath.startsWith("/")) File(newPath)
-                            else File(workingDir, newPath)
+                        trimmed.startsWith("cd ") -> {
+                            val newPath = trimmed.substring(3).trim()
+                            val newDir = if (newPath.startsWith("/")) File(newPath) else File(workingDir, newPath)
                             if (newDir.exists() && newDir.isDirectory) {
                                 sessions[sessionIdx] = session.copy(workingDir = newDir.absolutePath)
-                                listOf("→ ${newDir.absolutePath}")
+                                listOf("-> ${newDir.absolutePath}")
                             } else listOf("cd: no such directory: $newPath")
                         }
-                        cmd == "clear" -> {
-                            session.lines.clear()
-                            listOf()
-                        }
-                        cmd == "ls" -> workingDir.listFiles()
+                        trimmed == "clear" -> { session.lines.clear(); listOf() }
+                        trimmed == "ls" -> workingDir.listFiles()
                             ?.sortedWith(compareByDescending<File> { it.isDirectory }.thenBy { it.name })
                             ?.map { if (it.isDirectory) "${it.name}/" else it.name }
                             ?: listOf("Permission denied")
-                        cmd == "pwd" -> listOf(workingDir.absolutePath)
+                        trimmed == "pwd" -> listOf(workingDir.absolutePath)
                         else -> {
-                            val process = ProcessBuilder("sh", "-c", cmd)
+                            val process = ProcessBuilder("sh", "-c", trimmed)
                                 .directory(workingDir)
                                 .redirectErrorStream(true)
                                 .start()
@@ -178,7 +171,7 @@ fun TerminalPane() {
                             var line: String?
                             while (reader.readLine().also { line = it } != null) output.add(line!!)
                             process.waitFor()
-                            if (output.isEmpty()) listOf("✓ Done") else output
+                            if (output.isEmpty()) listOf("Done") else output
                         }
                     }
                 }
@@ -191,56 +184,109 @@ fun TerminalPane() {
     }
 
     Column(Modifier.fillMaxSize().background(Color(0xFF1E1E1E))) {
-        // Terminal tabs
+
+        // Tab bar + + button + ... menu
         Row(
-            Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF252526))
-                .horizontalScroll(rememberScrollState()),
+            Modifier.fillMaxWidth().background(Color(0xFF252526)),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            sessions.forEach { session ->
-                val isActive = session.id == activeId
-                Row(
-                    Modifier
-                        .background(if (isActive) Color(0xFF1E1E1E) else Color(0xFF2D2D2D))
-                        .clickable { activeId = session.id; saveAll() }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        session.name,
-                        color = if (isActive) Color.White else Color(0xFF969696),
-                        fontSize = 13.sp,
-                        fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
-                    )
-                    if (sessions.size > 1) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color(0xFF969696),
-                            modifier = Modifier
-                                .padding(start = 4.dp)
-                                .clickable { closeTerminal(session.id) }
-                                .padding(2.dp),
+            Row(
+                Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                sessions.forEach { session ->
+                    val isActive = session.id == activeId
+                    Row(
+                        Modifier
+                            .background(if (isActive) Color(0xFF1E1E1E) else Color(0xFF2D2D2D))
+                            .clickable { activeId = session.id; saveAll() }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            session.name,
+                            color = if (isActive) Color.White else Color(0xFF969696),
+                            fontSize = 13.sp,
+                            fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
                         )
+                        if (sessions.size > 1) {
+                            Icon(
+                                Icons.Default.Close, contentDescription = "Close",
+                                tint = Color(0xFF969696),
+                                modifier = Modifier.padding(start = 4.dp).clickable { closeTerminal(session.id) }.padding(2.dp),
+                            )
+                        }
                     }
                 }
             }
             IconButton(onClick = { addTerminal() }) {
                 Icon(Icons.Default.Add, contentDescription = "New terminal", tint = Color(0xFF969696))
             }
+            // 3-dot menu
+            Box {
+                IconButton(onClick = { showTerminalMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = Color(0xFF969696))
+                }
+                DropdownMenu(
+                    expanded = showTerminalMenu,
+                    onDismissRequest = { showTerminalMenu = false },
+                    offset = DpOffset(0.dp, 4.dp),
+                    modifier = Modifier.background(Color(0xFF252526)).width(230.dp),
+                ) {
+                    // Disabled scroll items
+                    listOf("Scroll to Previous Command" to "Ctrl+Up", "Scroll to Next Command" to "Ctrl+Down")
+                        .forEach { (label, shortcut) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(label, color = Color(0xFF5E5E5E), fontSize = 13.sp)
+                                        Text(shortcut, color = Color(0xFF4E4E4E), fontSize = 11.sp)
+                                    }
+                                },
+                                onClick = { showTerminalMenu = false },
+                                enabled = false,
+                            )
+                        }
+                    Divider(color = Color(0xFF3E3E3E))
+                    DropdownMenuItem(
+                        text = { Text("Clear Terminal", color = Color(0xFFCCCCCC), fontSize = 13.sp) },
+                        onClick = { clearTerminal(); showTerminalMenu = false },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Run Active File", color = Color(0xFFCCCCCC), fontSize = 13.sp) },
+                        onClick = {
+                            runCommand("sh \"\$(ls -t /storage/emulated/0/*.sh 2>/dev/null | head -1)\"")
+                            showTerminalMenu = false
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Run Selected Text", color = Color(0xFFCCCCCC), fontSize = 13.sp) },
+                        onClick = { runCommand(input); input = ""; showTerminalMenu = false },
+                    )
+                    Divider(color = Color(0xFF3E3E3E))
+                    listOf("Go to Recent Directory..." to "Ctrl+G", "Run Recent Command..." to "Ctrl+Alt+R")
+                        .forEach { (label, shortcut) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(label, color = Color(0xFF5E5E5E), fontSize = 13.sp)
+                                        Text(shortcut, color = Color(0xFF4E4E4E), fontSize = 11.sp)
+                                    }
+                                },
+                                onClick = { showTerminalMenu = false },
+                                enabled = false,
+                            )
+                        }
+                }
+            }
         }
 
-        // Terminal output
+        // Terminal output area
         activeSession?.let { session ->
             LazyColumn(
                 state = listState,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(12.dp),
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 items(session.lines) { line ->
                     Text(
@@ -248,43 +294,52 @@ fun TerminalPane() {
                         color = when {
                             line.startsWith("$") -> Color(0xFF89B4FA)
                             line.startsWith("Error") -> Color(0xFFF38BA8)
-                            line.startsWith("→") -> Color(0xFFA6E3A1)
+                            line.startsWith("->") -> Color(0xFFA6E3A1)
                             else -> Color(0xFFCDD6F4)
                         },
                         fontFamily = FontFamily.Monospace,
                         fontSize = 13.sp,
+                        modifier = Modifier.padding(vertical = 1.dp),
                     )
                 }
             }
 
-            // Input row
+            // Editable input — no placeholder bar, real text area you can copy/paste/edit
+            // Press Enter (newline) to execute
             Row(
                 Modifier
                     .fillMaxWidth()
                     .background(Color(0xFF252526))
-                    .padding(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.Top,
             ) {
                 Text(
                     "❯ ",
-                    color = Color(0xFF89B4FA),
+                    color = Color(0xFF4EC994),
                     fontFamily = FontFamily.Monospace,
                     fontSize = 14.sp,
-                    modifier = Modifier.padding(start = 8.dp),
+                    modifier = Modifier.padding(top = 2.dp, end = 4.dp),
                 )
-                OutlinedTextField(
+                BasicTextField(
                     value = input,
-                    onValueChange = { input = it },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    placeholder = { Text("Enter command...", color = Color.Gray, fontSize = 13.sp) },
+                    onValueChange = { newValue ->
+                        if (newValue.endsWith("\n")) {
+                            runCommand(newValue.trimEnd('\n'))
+                            input = ""
+                        } else {
+                            input = newValue
+                        }
+                    },
+                    modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                    textStyle = TextStyle(
+                        color = Color(0xFFCDD6F4),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp,
+                    ),
+                    cursorBrush = SolidColor(Color(0xFF89B4FA)),
+                    maxLines = 6,
                 )
-                IconButton(onClick = {
-                    runCommand(input)
-                    input = ""
-                }) {
-                    Icon(Icons.Default.Send, contentDescription = "Run", tint = Color(0xFF89B4FA))
-                }
             }
         }
     }
