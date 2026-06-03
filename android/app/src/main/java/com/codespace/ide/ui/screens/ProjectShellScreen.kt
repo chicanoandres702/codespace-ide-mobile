@@ -107,7 +107,7 @@ fun ProjectShellScreen(
                         SidePanel.EXPLORER to Icons.Default.Folder,
                         SidePanel.SEARCH to Icons.Default.Search,
                         SidePanel.GIT to Icons.Default.AccountTree,
-                        SidePanel.RUN to (if (activePanel == SidePanel.EXTENSIONS) Icons.Default.Extension else Icons.Default.BugReport),
+                        SidePanel.RUN to (if (activePanel == SidePanel.EXTENSIONS) Icons.Default.Extension else Icons.Default.BugReportOutlined),
                     ).forEach { (panel, icon) ->
                         val realPanel = if (panel == SidePanel.RUN && activePanel == SidePanel.EXTENSIONS) SidePanel.EXTENSIONS else panel
                         val isActive = activePanel == realPanel
