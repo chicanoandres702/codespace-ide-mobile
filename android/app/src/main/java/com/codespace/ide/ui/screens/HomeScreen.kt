@@ -177,7 +177,7 @@ fun HomeScreen(
                             Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Default.Folder, contentDescription = null)
+                            Icon(Icons.Default.Description, contentDescription = null)
                             Column(Modifier.weight(1f).padding(start = 8.dp)) {
                                 Text(project.name, style = MaterialTheme.typography.titleMedium)
                                 Text(

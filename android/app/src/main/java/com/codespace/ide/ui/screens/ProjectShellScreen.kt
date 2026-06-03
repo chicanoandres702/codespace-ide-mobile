@@ -209,7 +209,7 @@ fun ProjectShellScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Spacer(Modifier.width(8.dp))
-                Icon(Icons.Default.ArrowBack, null, tint = TabTextInactive,
+                Icon(Icons.Default.ChevronLeft, null, tint = TabTextInactive,
                     modifier = Modifier.size(20.dp).clickable { onBack() })
                 Spacer(Modifier.width(6.dp))
                 Icon(Icons.Default.Code, null, tint = ActivityBarIconActive, modifier = Modifier.size(18.dp))
@@ -219,7 +219,7 @@ fun ProjectShellScreen(
                 Icon(Icons.Default.Search, null, tint = TabTextInactive,
                     modifier = Modifier.size(20.dp).clickable { showCommandPalette = true })
                 Spacer(Modifier.width(8.dp))
-                Icon(Icons.Default.Terminal, null, tint = TabTextInactive,
+                Icon(Icons.Default.Computer, null, tint = TabTextInactive,
                     modifier = Modifier.size(20.dp).clickable { showBottomPanel = true; activeBottomTab = BottomTab.TERMINAL })
                 Spacer(Modifier.width(8.dp))
                 Icon(Icons.Default.PlayArrow, null, tint = Color(0xFF4CAF50),
@@ -262,7 +262,7 @@ fun ProjectShellScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     listOf(
-                        SidePanel.EXPLORER to Icons.Default.Folder,
+                        SidePanel.EXPLORER to Icons.Default.Description,
                         SidePanel.SEARCH   to Icons.Default.Search,
                         SidePanel.GIT      to Icons.Default.AccountTree,
                         SidePanel.RUN      to Icons.Default.BugReport,
@@ -439,7 +439,7 @@ fun ProjectShellScreen(
                                     Text("Open Explorer → tap a file to start", fontSize = 13.sp, color = Color(0xFFCCCCCC))
                                     Spacer(Modifier.height(24.dp))
                                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        listOf("Explorer" to Icons.Default.Folder, "Terminal" to Icons.Default.Terminal, "AI Chat" to Icons.Default.AutoAwesome).forEach { (lbl, ico) ->
+                                        listOf("Explorer" to Icons.Default.Description, "Terminal" to Icons.Default.Computer, "AI Chat" to Icons.Default.AutoAwesome).forEach { (lbl, ico) ->
                                             OutlinedButton(onClick = {
                                                 when (lbl) {
                                                     "Explorer" -> activePanel = SidePanel.EXPLORER
@@ -516,7 +516,7 @@ fun ProjectShellScreen(
                             Icon(Icons.Default.MoreHoriz, null, tint = TabTextInactive,
                                 modifier = Modifier.size(16.dp).clickable { showPanelMenu = true })
                             Spacer(Modifier.width(8.dp))
-                            Icon(Icons.Default.Fullscreen, null, tint = TabTextInactive,
+                            Icon(Icons.Default.OpenInFull, null, tint = TabTextInactive,
                                 modifier = Modifier.size(16.dp).clickable {
                                     bottomPanelHeight = if (bottomPanelHeight > totalHeight * 0.5f) 260f else totalHeight * 0.75f
                                 })
@@ -580,7 +580,7 @@ fun ProjectShellScreen(
                 Spacer(Modifier.width(2.dp))
                 Text("main", color = Color(0xFF424242), fontSize = 11.sp)
                 Spacer(Modifier.width(8.dp))
-                Icon(Icons.Default.CompareArrows, null, tint = Color(0xFF424242),
+                Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF424242),
                     modifier = Modifier.size(14.dp).clickable { showBottomPanel = !showBottomPanel })
                 Spacer(Modifier.width(4.dp))
                 Icon(Icons.Default.Close, null, tint = Color(0xFF424242), modifier = Modifier.size(12.dp))
@@ -620,8 +620,8 @@ fun ProjectShellScreen(
                     Modifier.align(Alignment.BottomEnd).padding(bottom = 60.dp),
                     horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    listOf("New File" to Icons.Default.NoteAdd, "New Folder" to Icons.Default.CreateNewFolder,
-                        "Run Project" to Icons.Default.PlayArrow, "Open Terminal" to Icons.Default.Terminal,
+                    listOf("New File" to Icons.Default.Add, "New Folder" to Icons.Default.CreateNewFolder,
+                        "Run Project" to Icons.Default.PlayArrow, "Open Terminal" to Icons.Default.Computer,
                         "Ask AI" to Icons.Default.AutoAwesome,
                     ).forEach { (label, icon) ->
                         Row(Modifier.clickable {
@@ -658,7 +658,7 @@ fun ProjectShellScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(when (notificationType) { "success" -> Icons.Default.CheckCircle; "error" -> Icons.Default.Error; "warning" -> Icons.Default.Warning; else -> Icons.Default.Info }, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Icon(when (notificationType) { "success" -> Icons.Default.Check; "error" -> Icons.Default.Cancel; "warning" -> Icons.Default.Warning; else -> Icons.Default.Info }, null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(notificationMsg!!, color = Color.White, fontSize = 13.sp)
                 }

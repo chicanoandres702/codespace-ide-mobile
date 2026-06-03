@@ -97,7 +97,7 @@ fun ExplorerSidePanel(
                     contextFile = root; showNewFolder = true; nameInput = ""
                 })
             Spacer(Modifier.width(8.dp))
-            Icon(Icons.Default.NoteAdd, null, tint = MutedColor,
+            Icon(Icons.Default.Add, null, tint = MutedColor,
                 modifier = Modifier.size(16.dp).clickable {
                     contextFile = root; showNewFile = true; nameInput = ""
                 })
@@ -138,11 +138,11 @@ fun ExplorerSidePanel(
                 ) {
                     if (node.file.isDirectory) {
                         Icon(
-                            if (node.isExpanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight,
+                            if (node.isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.ChevronRight,
                             null, tint = MutedColor, modifier = Modifier.size(16.dp),
                         )
                         Spacer(Modifier.width(2.dp))
-                        Icon(Icons.Default.Folder, null, tint = FolderColor, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Description, null, tint = FolderColor, modifier = Modifier.size(16.dp))
                     } else {
                         Spacer(Modifier.width(18.dp))
                         Icon(fileIcon(node.file.name), null, tint = IconColor, modifier = Modifier.size(16.dp))
@@ -168,10 +168,10 @@ fun ExplorerSidePanel(
                 Column {
                     listOf(
                         "Open"          to Icons.Default.OpenInNew,
-                        "Rename"        to Icons.Default.DriveFileRenameOutline,
+                        "Rename"        to Icons.Default.Edit,
                         "Delete"        to Icons.Default.Delete,
                         "Copy Path"     to Icons.Default.ContentCopy,
-                        "New File Here" to Icons.Default.NoteAdd,
+                        "New File Here" to Icons.Default.Add,
                         "New Folder Here" to Icons.Default.CreateNewFolder,
                     ).forEach { (label, icon) ->
                         Row(
@@ -295,14 +295,14 @@ private fun fileIcon(name: String) = when {
     name.endsWith(".kt")   -> Icons.Default.Code
     name.endsWith(".java") -> Icons.Default.Code
     name.endsWith(".py")   -> Icons.Default.Code
-    name.endsWith(".js") || name.endsWith(".ts") -> Icons.Default.Javascript
-    name.endsWith(".html") || name.endsWith(".xml") -> Icons.Default.Html
-    name.endsWith(".json") -> Icons.Default.DataObject
+    name.endsWith(".js") || name.endsWith(".ts") -> Icons.Default.Code
+    name.endsWith(".html") || name.endsWith(".xml") -> Icons.Default.Code
+    name.endsWith(".json") -> Icons.Default.Code
     name.endsWith(".md")   -> Icons.Default.Article
     name.endsWith(".gradle") || name.endsWith(".kts") -> Icons.Default.Build
     name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".svg") -> Icons.Default.Image
-    name.endsWith(".zip") || name.endsWith(".apk") -> Icons.Default.Archive
-    name.endsWith(".sh")   -> Icons.Default.Terminal
+    name.endsWith(".zip") || name.endsWith(".apk") -> Icons.Default.FolderZip
+    name.endsWith(".sh")   -> Icons.Default.Computer
     else                   -> Icons.Default.InsertDriveFile
 }
 
