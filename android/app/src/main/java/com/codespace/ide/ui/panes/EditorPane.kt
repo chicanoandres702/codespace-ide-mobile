@@ -66,11 +66,25 @@ fun loadFileContent(path: String): String = try {
 fun EditorPane(
     openFilePath: String? = null,
     onFileOpened: (() -> Unit)? = null,
+    onInsertRequest: (((String) -> Unit) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val tabs = remember { mutableStateListOf<EditorTab>() }
     var activeId by remember { mutableStateOf<String?>(null) }
     var splitId by remember { mutableStateOf<String?>(null) }
+
+    // Wire up keyboard toolbar insert callback
+    LaunchedEffect(onInsertRequest) {
+        onInsertRequest?.invoke { text ->
+            val active = tabs.firstOrNull { it.id == activeId } ?: return@invoke
+            val idx = tabs.indexOfFirst { it.id == activeId }
+            val newContent = active.content + text
+            if (idx >= 0) tabs[idx] = active.copy(content = newContent, isDirty = true)
+            if (active.path.startsWith("/")) {
+                try { File(active.path).writeText(newContent) } catch (_: Exception) {}
+            }
+        }
+    }
 
     // Open a new tab when the explorer requests a file
     LaunchedEffect(openFilePath) {
