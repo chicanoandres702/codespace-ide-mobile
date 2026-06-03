@@ -650,6 +650,7 @@ fun ProjectShellScreen(
         }
     }
 }
+}
 
 @Composable
 private fun ExplorerSidePanel(onOpenFile: (String) -> Unit, onMoreMenu: () -> Unit) {
@@ -828,3 +829,4 @@ private fun OutputPanel() {
         }
     }
 }
+
