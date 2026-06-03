@@ -1,6 +1,5 @@
 package com.codespace.ide.ui.screens
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -68,10 +67,6 @@ fun ProjectShellScreen(
 ) {
     val density = LocalDensity.current
     var activePanel by remember { mutableStateOf<SidePanel?>(null) }
-    // bottomPanelVisible controls whether panel is shown or collapsed.
-    // We NEVER remove it from the composition tree — only animate its height to 0
-    // so Terminal/Output/Problems sessions are never destroyed.
-    var bottomPanelVisible by remember { mutableStateOf(true) }
     var showAiPanel by remember { mutableStateOf(false) }
     var activeBottomTab by remember { mutableStateOf(BottomTab.TERMINAL) }
     var totalWidth by remember { mutableFloatStateOf(1080f) }
@@ -95,10 +90,6 @@ fun ProjectShellScreen(
     val editorTabs = remember { mutableStateListOf<String>() }
     var activeEditorTab by remember { mutableStateOf<String?>(null) }
 
-    // Animate bottom panel height: when collapsed → 0.dp, when open → actual height
-    val animatedBh by animateDpAsState(
-        targetValue = if (bottomPanelVisible) with(density) { bottomPanelHeight.toDp() }.coerceIn(60.dp, 500.dp) else 0.dp,
-        label = "bottomPanelHeight"
     )
 
     Box(
@@ -214,126 +205,89 @@ fun ProjectShellScreen(
                         }
 
                         // ── BOTTOM PANEL ──────────────────────────────────────────────
-                        // The drag handle is always present so you can re-open the panel
-                        // by dragging up even when it is collapsed. The three panels
-                        // (Terminal / Output / Problems) are ALWAYS in the composition
-                        // tree — we only hide them by setting height to 0 — so the
-                        // terminal session is NEVER killed when you close or switch tabs.
+                        // Drag handle to resize. Tab bar always visible.
+                        // Active tab = blue outlined pill. Content switches on tap.
+                        // All 3 panels stay composed — terminal session never dies.
+
+                        // Resize drag handle
                         Box(
                             Modifier.fillMaxWidth().height(4.dp).background(DividerColor)
                                 .pointerInput(Unit) {
                                     detectDragGestures { _, dragAmount ->
-                                        val nh = bottomPanelHeight - dragAmount.y
-                                        if (nh < 40f) {
-                                            bottomPanelVisible = false
-                                        } else {
-                                            bottomPanelHeight = nh.coerceIn(60f, totalHeight * 0.6f)
-                                            bottomPanelVisible = true
-                                        }
+                                        bottomPanelHeight = (bottomPanelHeight - dragAmount.y)
+                                            .coerceIn(80f, totalHeight * 0.75f)
                                     }
                                 }
                         )
 
-                        // Tab bar — always visible even when panel is collapsed,
-                        // so tapping a tab re-opens the panel.
+                        // Tab bar — always on screen
                         Row(
-                            Modifier.fillMaxWidth().background(TabBarBg).height(35.dp),
+                            Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFF3F3F3))
+                                .height(36.dp)
+                                .padding(horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            // PROBLEMS | OUTPUT | TERMINAL — always visible, never disappear
                             BottomTab.entries.forEach { tab ->
                                 val isActive = tab == activeBottomTab
-                                Column(
+                                Box(
                                     Modifier
-                                        .clickable {
-                                            if (!bottomPanelVisible) {
-                                                // Tapping a tab re-opens the panel
-                                                bottomPanelVisible = true
-                                            }
-                                            activeBottomTab = tab
-                                        }
-                                        .fillMaxHeight(),
-                                    verticalArrangement = Arrangement.Bottom,
-                                ) {
-                                    Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                        Text(
-                                            tab.name,
-                                            fontSize = 12.sp,
-                                            color = if (isActive) TabText else TabTextInactive,
-                                            fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
+                                        .clickable { activeBottomTab = tab }
+                                        .background(
+                                            color = if (isActive) Color(0xFFDCEAFB) else Color.Transparent,
+                                            shape = RoundedCornerShape(4.dp),
                                         )
-                                    }
-                                    // Active underline indicator — just like VS Code
-                                    if (isActive) Box(Modifier.fillMaxWidth().height(1.dp).background(TabActiveIndicator))
-                                    else Spacer(Modifier.height(1.dp))
+                                        .border(
+                                            width = if (isActive) 1.dp else 0.dp,
+                                            color = if (isActive) Color(0xFF007ACC) else Color.Transparent,
+                                            shape = RoundedCornerShape(4.dp),
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        tab.name,
+                                        fontSize = 12.sp,
+                                        color = if (isActive) Color(0xFF007ACC) else Color(0xFF717171),
+                                        fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+                                    )
                                 }
+                                Spacer(Modifier.width(4.dp))
                             }
                             Spacer(Modifier.weight(1f))
-                            // Context icons per tab (match VS Code)
-                            when (activeBottomTab) {
-                                BottomTab.PROBLEMS -> {
-                                    Icon(Icons.Default.FilterList, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Icon(Icons.Default.UnfoldLess, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                }
-                                BottomTab.OUTPUT -> {
-                                    Icon(Icons.Default.FilterList, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Icon(Icons.Default.Lock, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                }
-                                BottomTab.TERMINAL -> { /* terminal has its own internal header with + and menu */ }
-                            }
-                            // "..." — context-aware menu per tab, rendered in root Box (z-order fix)
                             Icon(Icons.Default.MoreHoriz, null, tint = TabTextInactive,
                                 modifier = Modifier.size(16.dp).clickable { showPanelMenu = true })
-                            Spacer(Modifier.width(6.dp))
-                            Box(Modifier.width(1.dp).height(16.dp).background(DividerColor))
-                            Spacer(Modifier.width(6.dp))
+                            Spacer(Modifier.width(8.dp))
                             Icon(Icons.Default.OpenInFull, null, tint = TabTextInactive,
                                 modifier = Modifier.size(16.dp).clickable {
-                                    bottomPanelHeight = if (bottomPanelHeight > totalHeight * 0.7f) 300f else totalHeight * 0.85f
-                                    bottomPanelVisible = true
+                                    bottomPanelHeight = if (bottomPanelHeight > totalHeight * 0.5f) 260f else totalHeight * 0.75f
                                 })
-                            Spacer(Modifier.width(6.dp))
-                            // Close = COLLAPSE only. Panel stays in tree, terminal lives on.
-                            Icon(Icons.Default.Close, null, tint = TabTextInactive,
-                                modifier = Modifier.size(16.dp).clickable { bottomPanelVisible = false })
                             Spacer(Modifier.width(8.dp))
                         }
 
-                        // Panel content — height animates to 0 when collapsed, never removed
-                        Column(Modifier.fillMaxWidth().height(animatedBh).background(PanelBg)) {
-                            HorizontalDivider(color = DividerColor)
-                            Box(Modifier.fillMaxSize()) {
-                                // All three panels ALWAYS composed — only alpha changes.
-                                // This means Terminal session, scroll position, command history
-                                // are all preserved when switching tabs or collapsing the panel.
-                                Box(
-                                    Modifier.fillMaxSize()
-                                        .graphicsLayer { alpha = if (activeBottomTab == BottomTab.TERMINAL) 1f else 0f }
-                                        .then(if (activeBottomTab == BottomTab.TERMINAL) Modifier else Modifier.pointerInput(Unit) {})
-                                ) {
-                                    TerminalPane()
-                                }
-                                Box(
-                                    Modifier.fillMaxSize()
-                                        .graphicsLayer { alpha = if (activeBottomTab == BottomTab.PROBLEMS) 1f else 0f }
-                                        .then(if (activeBottomTab == BottomTab.PROBLEMS) Modifier else Modifier.pointerInput(Unit) {})
-                                ) {
-                                    ProblemsPanel()
-                                }
-                                Box(
-                                    Modifier.fillMaxSize()
-                                        .graphicsLayer { alpha = if (activeBottomTab == BottomTab.OUTPUT) 1f else 0f }
-                                        .then(if (activeBottomTab == BottomTab.OUTPUT) Modifier else Modifier.pointerInput(Unit) {})
-                                ) {
-                                    OutputPanel()
-                                }
-                            }
+                        HorizontalDivider(color = DividerColor)
+
+                        // Panel content — fixed height, all 3 always in tree
+                        val bh = with(density) { bottomPanelHeight.toDp() }.coerceIn(80.dp, 600.dp)
+                        Box(Modifier.fillMaxWidth().height(bh).background(PanelBg)) {
+                            Box(
+                                Modifier.fillMaxSize()
+                                    .graphicsLayer { alpha = if (activeBottomTab == BottomTab.TERMINAL) 1f else 0f }
+                                    .then(if (activeBottomTab == BottomTab.TERMINAL) Modifier else Modifier.pointerInput(Unit) {})
+                            ) { TerminalPane() }
+                            Box(
+                                Modifier.fillMaxSize()
+                                    .graphicsLayer { alpha = if (activeBottomTab == BottomTab.PROBLEMS) 1f else 0f }
+                                    .then(if (activeBottomTab == BottomTab.PROBLEMS) Modifier else Modifier.pointerInput(Unit) {})
+                            ) { ProblemsPanel() }
+                            Box(
+                                Modifier.fillMaxSize()
+                                    .graphicsLayer { alpha = if (activeBottomTab == BottomTab.OUTPUT) 1f else 0f }
+                                    .then(if (activeBottomTab == BottomTab.OUTPUT) Modifier else Modifier.pointerInput(Unit) {})
+                            ) { OutputPanel() }
                         }
-                    }
+
 
                     if (showAiPanel) {
                         val aw = with(density) { aiPanelWidth.toDp() }.coerceIn(200.dp, 500.dp)
@@ -365,7 +319,7 @@ fun ProjectShellScreen(
             ) {
                 // Toggle bottom panel visibility
                 Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF424242),
-                    modifier = Modifier.size(14.dp).clickable { bottomPanelVisible = !bottomPanelVisible })
+                    modifier = Modifier.size(14.dp).clickable { bottomPanelHeight = if (bottomPanelHeight > 80f) 0f else 260f })
                 Spacer(Modifier.width(4.dp))
                 Icon(Icons.Default.Close, null, tint = Color(0xFF424242), modifier = Modifier.size(12.dp))
                 Text(" 0", color = Color(0xFF424242), fontSize = 11.sp)
