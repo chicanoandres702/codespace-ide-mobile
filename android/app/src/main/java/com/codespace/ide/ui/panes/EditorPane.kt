@@ -67,6 +67,8 @@ fun EditorPane(
     openFilePath: String? = null,
     onFileOpened: (() -> Unit)? = null,
     onInsertRequest: (((String) -> Unit) -> Unit)? = null,
+    fontSize: Int = 13,
+    onCursorChange: ((Int, Int) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val tabs = remember { mutableStateListOf<EditorTab>() }
@@ -195,6 +197,7 @@ fun EditorPane(
                     CodeEditor(
                         content = active.content,
                         language = active.language,
+                        fontSize = fontSize,
                         onContentChange = { newText ->
                             val idx = tabs.indexOfFirst { it.id == active.id }
                             if (idx >= 0) tabs[idx] = active.copy(content = newText, isDirty = true)
@@ -209,6 +212,7 @@ fun EditorPane(
                     CodeEditor(
                         content = splitTab.content,
                         language = splitTab.language,
+                        fontSize = fontSize,
                         onContentChange = {},
                         modifier = Modifier.weight(1f),
                     )
@@ -217,6 +221,7 @@ fun EditorPane(
                 CodeEditor(
                     content = active.content,
                     language = active.language,
+                    fontSize = fontSize,
                     onContentChange = { newText ->
                         val idx = tabs.indexOfFirst { it.id == active.id }
                         if (idx >= 0) tabs[idx] = active.copy(content = newText, isDirty = true)
