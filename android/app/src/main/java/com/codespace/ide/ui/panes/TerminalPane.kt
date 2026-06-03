@@ -23,6 +23,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -95,6 +96,7 @@ fun loadTerminals(context: Context): Pair<List<TerminalSession>, String> {
 fun TerminalPane() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     val (savedSessions, savedActiveId) = remember { loadTerminals(context) }
     val sessions = remember { mutableStateListOf(*savedSessions.toTypedArray()) }
@@ -106,6 +108,7 @@ fun TerminalPane() {
 
     val activeSession = sessions.firstOrNull { it.id == activeId } ?: sessions.firstOrNull()
 
+    // Auto-scroll to bottom when new output arrives
     LaunchedEffect(activeSession?.lines?.size) {
         val size = activeSession?.lines?.size ?: 0
         if (size > 0) listState.animateScrollToItem(size - 1)
@@ -185,7 +188,7 @@ fun TerminalPane() {
 
     Column(Modifier.fillMaxSize().background(Color(0xFF1E1E1E))) {
 
-        // Tab bar + + button + ... menu
+        // ── Internal tab bar: bash session tabs + "+" + "⋮" ────────────────────
         Row(
             Modifier.fillMaxWidth().background(Color(0xFF252526)),
             verticalAlignment = Alignment.CenterVertically,
@@ -214,7 +217,10 @@ fun TerminalPane() {
                             Icon(
                                 Icons.Default.Close, contentDescription = "Close",
                                 tint = Color(0xFF969696),
-                                modifier = Modifier.padding(start = 4.dp).clickable { closeTerminal(session.id) }.padding(2.dp),
+                                modifier = Modifier
+                                    .padding(start = 4.dp)
+                                    .clickable { closeTerminal(session.id) }
+                                    .padding(2.dp),
                             )
                         }
                     }
@@ -223,7 +229,7 @@ fun TerminalPane() {
             IconButton(onClick = { addTerminal() }) {
                 Icon(Icons.Default.Add, contentDescription = "New terminal", tint = Color(0xFF969696))
             }
-            // 3-dot menu
+            // Internal ⋮ menu (Clear, Kill, etc.)
             Box {
                 IconButton(onClick = { showTerminalMenu = true }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = Color(0xFF969696))
@@ -232,114 +238,107 @@ fun TerminalPane() {
                     expanded = showTerminalMenu,
                     onDismissRequest = { showTerminalMenu = false },
                     offset = DpOffset(0.dp, 4.dp),
-                    modifier = Modifier.background(Color(0xFF252526)).width(230.dp),
+                    modifier = Modifier.background(Color(0xFF2D2D2D)),
                 ) {
-                    // Disabled scroll items
-                    listOf("Scroll to Previous Command" to "Ctrl+Up", "Scroll to Next Command" to "Ctrl+Down")
-                        .forEach { (label, shortcut) ->
-                            DropdownMenuItem(
-                                text = {
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(label, color = Color(0xFF5E5E5E), fontSize = 13.sp)
-                                        Text(shortcut, color = Color(0xFF4E4E4E), fontSize = 11.sp)
-                                    }
-                                },
-                                onClick = { showTerminalMenu = false },
-                                enabled = false,
-                            )
-                        }
-                    Divider(color = Color(0xFF3E3E3E))
-                    DropdownMenuItem(
-                        text = { Text("Clear Terminal", color = Color(0xFFCCCCCC), fontSize = 13.sp) },
-                        onClick = { clearTerminal(); showTerminalMenu = false },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Run Active File", color = Color(0xFFCCCCCC), fontSize = 13.sp) },
-                        onClick = {
-                            runCommand("sh \"\$(ls -t /storage/emulated/0/*.sh 2>/dev/null | head -1)\"")
-                            showTerminalMenu = false
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Run Selected Text", color = Color(0xFFCCCCCC), fontSize = 13.sp) },
-                        onClick = { runCommand(input); input = ""; showTerminalMenu = false },
-                    )
-                    Divider(color = Color(0xFF3E3E3E))
-                    listOf("Go to Recent Directory..." to "Ctrl+G", "Run Recent Command..." to "Ctrl+Alt+R")
-                        .forEach { (label, shortcut) ->
-                            DropdownMenuItem(
-                                text = {
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(label, color = Color(0xFF5E5E5E), fontSize = 13.sp)
-                                        Text(shortcut, color = Color(0xFF4E4E4E), fontSize = 11.sp)
-                                    }
-                                },
-                                onClick = { showTerminalMenu = false },
-                                enabled = false,
-                            )
-                        }
+                    listOf(
+                        "Clear Terminal" to { clearTerminal() },
+                        "New Terminal" to { addTerminal() },
+                        "Kill Terminal" to { if (sessions.size > 1) closeTerminal(activeId) },
+                    ).forEach { (label, action) ->
+                        DropdownMenuItem(
+                            text = { Text(label, color = Color(0xFFCCCCCC), fontSize = 13.sp) },
+                            onClick = { showTerminalMenu = false; action() },
+                        )
+                    }
                 }
             }
         }
 
-        // Terminal output area
-        activeSession?.let { session ->
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        // ── Output area + input row ──────────────────────────────────────────────
+        // Tapping anywhere in the output scrolls and re-focuses the input field
+        if (activeSession != null) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    // IMPORTANT: tapping the output area focuses the text field
+                    // so the keyboard pops up reliably — even after switching tabs
+                    .clickable(indication = null, interactionSource = remember {
+                        androidx.compose.foundation.interaction.MutableInteractionSource()
+                    }) {
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                    }
             ) {
-                items(session.lines) { line ->
+                // Scrollable output
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    items(activeSession.lines) { line ->
+                        Text(
+                            line,
+                            color = when {
+                                line.startsWith("$") -> Color(0xFF89B4FA)
+                                line.startsWith("Error") -> Color(0xFFF38BA8)
+                                line.startsWith("->") -> Color(0xFFA6E3A1)
+                                else -> Color(0xFFCDD6F4)
+                            },
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(vertical = 1.dp),
+                        )
+                    }
+                }
+
+                // ── Input row ────────────────────────────────────────────────────
+                // Prompt + BasicTextField. Tapping this row also requests focus.
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF252526))
+                        .clickable(indication = null, interactionSource = remember {
+                            androidx.compose.foundation.interaction.MutableInteractionSource()
+                        }) {
+                            focusRequester.requestFocus()
+                            keyboardController?.show()
+                        }
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
                     Text(
-                        line,
-                        color = when {
-                            line.startsWith("$") -> Color(0xFF89B4FA)
-                            line.startsWith("Error") -> Color(0xFFF38BA8)
-                            line.startsWith("->") -> Color(0xFFA6E3A1)
-                            else -> Color(0xFFCDD6F4)
-                        },
+                        "❯ ",
+                        color = Color(0xFF4EC994),
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(vertical = 1.dp),
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(top = 2.dp, end = 4.dp),
+                    )
+                    BasicTextField(
+                        value = input,
+                        onValueChange = { newValue ->
+                            // Enter key submits command
+                            if (newValue.endsWith("\n")) {
+                                runCommand(newValue.trimEnd('\n'))
+                                input = ""
+                            } else {
+                                input = newValue
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .focusRequester(focusRequester),
+                        textStyle = TextStyle(
+                            color = Color(0xFFCDD6F4),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            lineHeight = 20.sp,
+                        ),
+                        cursorBrush = SolidColor(Color(0xFF89B4FA)),
+                        maxLines = 6,
                     )
                 }
-            }
-
-            // Editable input — no placeholder bar, real text area you can copy/paste/edit
-            // Press Enter (newline) to execute
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFF252526))
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Text(
-                    "❯ ",
-                    color = Color(0xFF4EC994),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(top = 2.dp, end = 4.dp),
-                )
-                BasicTextField(
-                    value = input,
-                    onValueChange = { newValue ->
-                        if (newValue.endsWith("\n")) {
-                            runCommand(newValue.trimEnd('\n'))
-                            input = ""
-                        } else {
-                            input = newValue
-                        }
-                    },
-                    modifier = Modifier.weight(1f).focusRequester(focusRequester),
-                    textStyle = TextStyle(
-                        color = Color(0xFFCDD6F4),
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        lineHeight = 20.sp,
-                    ),
-                    cursorBrush = SolidColor(Color(0xFF89B4FA)),
-                    maxLines = 6,
-                )
             }
         }
     }
