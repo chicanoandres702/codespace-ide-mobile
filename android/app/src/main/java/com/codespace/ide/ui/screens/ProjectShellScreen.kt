@@ -90,8 +90,6 @@ fun ProjectShellScreen(
     val editorTabs = remember { mutableStateListOf<String>() }
     var activeEditorTab by remember { mutableStateOf<String?>(null) }
 
-    )
-
     Box(
         Modifier.fillMaxSize().background(BgColor)
             .onGloballyPositioned { totalWidth = it.size.width.toFloat(); totalHeight = it.size.height.toFloat() }
