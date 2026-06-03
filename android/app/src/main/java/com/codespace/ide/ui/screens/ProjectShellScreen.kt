@@ -104,7 +104,7 @@ fun ProjectShellScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     listOf(
-                        SidePanel.EXPLORER to Icons.Default.Description,
+                        SidePanel.EXPLORER to Icons.Default.Folder,
                         SidePanel.SEARCH to Icons.Default.Search,
                         SidePanel.GIT to Icons.Default.AccountTree,
                         SidePanel.RUN to (if (activePanel == SidePanel.EXTENSIONS) Icons.Default.Extension else Icons.Default.BugReport),
@@ -259,7 +259,7 @@ fun ProjectShellScreen(
                             Icon(Icons.Default.MoreHoriz, null, tint = TabTextInactive,
                                 modifier = Modifier.size(16.dp).clickable { showPanelMenu = true })
                             Spacer(Modifier.width(8.dp))
-                            Icon(Icons.Default.OpenInFull, null, tint = TabTextInactive,
+                            Icon(Icons.Default.Fullscreen, null, tint = TabTextInactive,
                                 modifier = Modifier.size(16.dp).clickable {
                                     bottomPanelHeight = if (bottomPanelHeight > totalHeight * 0.5f) 260f else totalHeight * 0.75f
                                 })
@@ -318,7 +318,7 @@ fun ProjectShellScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Toggle bottom panel visibility
-                Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF424242),
+                Icon(Icons.Default.CompareArrows, null, tint = Color(0xFF424242),
                     modifier = Modifier.size(14.dp).clickable { bottomPanelHeight = if (bottomPanelHeight > 80f) 0f else 260f })
                 Spacer(Modifier.width(4.dp))
                 Icon(Icons.Default.Close, null, tint = Color(0xFF424242), modifier = Modifier.size(12.dp))
@@ -341,8 +341,8 @@ fun ProjectShellScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Spacer(Modifier.width(52.dp))
-            Icon(Icons.Default.ChevronLeft, null, tint = Color(0xFF717171), modifier = Modifier.size(20.dp).clickable { onBack() })
-            Icon(Icons.Default.ChevronRight, null, tint = Color(0xFFCCCCCC), modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.ArrowBack, null, tint = Color(0xFF717171), modifier = Modifier.size(20.dp).clickable { onBack() })
+            Icon(Icons.Default.ArrowForward, null, tint = Color(0xFFCCCCCC), modifier = Modifier.size(20.dp))
             Box(
                 Modifier.weight(1f).fillMaxHeight().clickable { showCommandPalette = true }.padding(horizontal = 8.dp),
                 contentAlignment = Alignment.Center,
@@ -353,7 +353,7 @@ fun ProjectShellScreen(
                 Modifier.size(36.dp).background(if (showAiPanel) Color(0xFF007ACC) else Color.Transparent).clickable { showAiPanel = !showAiPanel },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.AutoAwesome, null, tint = if (showAiPanel) Color.White else Color(0xFF717171), modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Stars, null, tint = if (showAiPanel) Color.White else Color(0xFF717171), modifier = Modifier.size(18.dp))
             }
         }
 
@@ -491,7 +491,7 @@ fun ProjectShellScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Turn on Settings Sync…", fontSize = 13.sp, color = FloatingMenuText)
-                            Icon(Icons.Default.ChevronRight, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.ArrowForward, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
                         }
                         Row(Modifier.fillMaxWidth().clickable { showPersonMenu = false }
                             .padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -528,7 +528,7 @@ fun ProjectShellScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Themes", fontSize = 13.sp, color = FloatingMenuText)
-                            Icon(Icons.Default.ChevronRight, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.ArrowForward, null, tint = TabTextInactive, modifier = Modifier.size(16.dp))
                         }
                         if (showGearThemeMenu) {
                             HorizontalDivider(color = DividerColor)
@@ -689,7 +689,7 @@ private fun SectionRow(title: String, expanded: Boolean, onToggle: () -> Unit) {
         Modifier.fillMaxWidth().clickable { onToggle() }.padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(if (expanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight, null,
+        Icon(if (expanded) Icons.Default.ExpandMore else Icons.Default.ArrowForward, null,
             tint = TabTextInactive, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(4.dp))
         Text(title, fontSize = 11.sp, color = SectionHeaderText, fontWeight = FontWeight.Medium)
