@@ -109,7 +109,7 @@ fun SettingsScreen(
                 title = { Text("Settings") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.NavigateBefore, contentDescription = "Back")
+                        Icon(Icons.Default.ChevronLeft, contentDescription = "Back")
                     }
                 },
             )

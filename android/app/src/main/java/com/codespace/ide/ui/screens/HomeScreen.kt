@@ -177,7 +177,7 @@ fun HomeScreen(
                             Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Default.InsertDriveFile, contentDescription = null)
+                            Icon(Icons.Default.Add, contentDescription = null)
                             Column(Modifier.weight(1f).padding(start = 8.dp)) {
                                 Text(project.name, style = MaterialTheme.typography.titleMedium)
                                 Text(
