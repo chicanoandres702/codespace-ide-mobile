@@ -209,7 +209,7 @@ fun ProjectShellScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Spacer(Modifier.width(8.dp))
-                Icon(Icons.Default.KeyboardArrowLeft, null, tint = TabTextInactive,
+                Icon(Icons.Default.KeyboardArrowUp, null, tint = TabTextInactive,
                     modifier = Modifier.size(20.dp).clickable { onBack() })
                 Spacer(Modifier.width(6.dp))
                 Icon(Icons.Default.Code, null, tint = ActivityBarIconActive, modifier = Modifier.size(18.dp))
