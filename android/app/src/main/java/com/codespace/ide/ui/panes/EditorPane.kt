@@ -183,7 +183,7 @@ fun EditorPane(
                 }
                 // Split view button
                 IconButton(onClick = { splitId = if (splitId == null) activeId else null }, modifier = Modifier.size(35.dp)) {
-                    Icon(Icons.Default.ViewColumn, contentDescription = "Split", tint = TabTextInactive, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.VerticalDistribute, contentDescription = "Split", tint = TabTextInactive, modifier = Modifier.size(16.dp))
                 }
             }
             HorizontalDivider(color = DividerColor)

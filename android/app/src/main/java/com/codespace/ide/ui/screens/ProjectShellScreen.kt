@@ -528,18 +528,12 @@ fun ProjectShellScreen(
                         HorizontalDivider(color = DividerColor)
                         val bh = with(density) { bottomPanelHeight.toDp() }.coerceIn(60.dp, 600.dp)
                         Box(Modifier.fillMaxWidth().height(bh).background(PanelBg)) {
-                            listOf(
-                                BottomTab.TERMINAL to { TerminalPane() },
-                                BottomTab.PROBLEMS to { ProblemsPanel() },
-                                BottomTab.OUTPUT   to { OutputPanel() },
-                                BottomTab.DEBUG    to { DebugConsolePanel() },
-                                BottomTab.PORTS    to { PortsPanel() },
-                            ).forEach { (tab, content) ->
-                                Box(
-                                    Modifier.fillMaxSize()
-                                        .graphicsLayer { alpha = if (activeBottomTab == tab) 1f else 0f }
-                                        .then(if (activeBottomTab == tab) Modifier else Modifier.pointerInput(Unit) {})
-                                ) { content() }
+                            when (activeBottomTab) {
+                                BottomTab.TERMINAL -> TerminalPane()
+                                BottomTab.PROBLEMS -> ProblemsPanel()
+                                BottomTab.OUTPUT   -> OutputPanel()
+                                BottomTab.DEBUG    -> DebugConsolePanel()
+                                BottomTab.PORTS    -> PortsPanel()
                             }
                         }
                     }
