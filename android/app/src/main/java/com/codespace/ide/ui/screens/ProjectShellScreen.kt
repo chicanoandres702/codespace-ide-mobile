@@ -128,6 +128,8 @@ fun ProjectShellScreen(
     var showBottomPanel    by remember { mutableStateOf(true) }
     var showAiPanel        by remember { mutableStateOf(false) }
     var showFab            by remember { mutableStateOf(false) }
+    var fabOffsetX         by remember { mutableFloatStateOf(0f) }
+    var fabOffsetY         by remember { mutableFloatStateOf(0f) }
     var activeBottomTab    by remember { mutableStateOf(BottomTab.TERMINAL) }
     var totalWidth         by remember { mutableFloatStateOf(1080f) }
     var totalHeight        by remember { mutableFloatStateOf(1920f) }
@@ -607,8 +609,16 @@ fun ProjectShellScreen(
 
         } // end outer Column
 
-        // FAB
-        Box(Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 36.dp)) {
+        // FAB — draggable
+        Box(Modifier.align(Alignment.BottomEnd)
+            .padding(end = 16.dp, bottom = 36.dp)
+            .offset { androidx.compose.ui.unit.IntOffset(fabOffsetX.toInt(), fabOffsetY.toInt()) }
+            .pointerInput(Unit) {
+                detectDragGestures { _, dragAmount ->
+                    fabOffsetX = (fabOffsetX + dragAmount.x).coerceIn(-900f, 100f)
+                    fabOffsetY = (fabOffsetY + dragAmount.y).coerceIn(-1600f, 100f)
+                }
+            }) {
             if (showFab) {
                 Column(
                     Modifier.align(Alignment.BottomEnd).padding(bottom = 60.dp),
@@ -730,8 +740,23 @@ fun ProjectShellScreen(
                 Column(Modifier.padding(top = 80.dp).fillMaxWidth(0.9f).background(MenuBg, RoundedCornerShape(8.dp)).border(1.dp, MenuBorder, RoundedCornerShape(8.dp)).clickable(enabled = false) {}) {
                     Text("Color Theme", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(16.dp))
                     HorizontalDivider(color = DividerColor)
-                    listOf("Light (Default)", "Dark (Default)", "GitHub Light", "Dracula", "AMOLED Black", "Monokai").forEach { name ->
-                        val dark = name.contains("Dark") || name == "Dracula" || name == "AMOLED Black" || name == "Monokai"
+                    listOf(
+                        "Light (Default)" to false,
+                        "Light Modern" to false,
+                        "GitHub Light" to false,
+                        "Quiet Light" to false,
+                        "Solarized Light" to false,
+                        "Dark (Default)" to true,
+                        "Dark Modern" to true,
+                        "Dracula" to true,
+                        "AMOLED Black" to true,
+                        "Monokai" to true,
+                        "One Dark Pro" to true,
+                        "GitHub Dark" to true,
+                        "Tokyo Night" to true,
+                        "Nord" to true,
+                        "Catppuccin" to true,
+                    ).forEach { (name, dark) ->
                         Row(Modifier.fillMaxWidth().clickable { if (dark != isDark) onToggleTheme(); showColorTheme = false }.padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(name, fontSize = 13.sp, color = MenuText)
                             Text(if (dark) "dark" else "light", fontSize = 11.sp, color = TabTextInactive)

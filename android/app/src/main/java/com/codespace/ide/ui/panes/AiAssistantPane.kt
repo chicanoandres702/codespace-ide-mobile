@@ -117,7 +117,7 @@ fun AiAssistantPane(tokenStore: SecureTokenStore) {
             val model = when (activeProvider) {
                 "CLAUDE" -> "claude-haiku-4-5-20251001"
                 "OPENAI" -> "gpt-4o-mini"
-                "GEMINI" -> "gemini-1.5-flash"
+                "GEMINI" -> "gemini-2.0-flash"
                 "DEEPSEEK" -> "deepseek-chat"
                 else -> "mistralai/mistral-7b-instruct:free"
             }
