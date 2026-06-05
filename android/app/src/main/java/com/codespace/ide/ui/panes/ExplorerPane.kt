@@ -303,14 +303,16 @@ private fun fileIcon(name: String) = when {
     name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".svg") -> Icons.Default.Image
     name.endsWith(".zip") || name.endsWith(".apk") -> Icons.Default.FolderZip
     name.endsWith(".sh")   -> Icons.Default.Computer
-    else                   -> Icons.Default.InsertDriveFile
+    else                   -> Icons.Default.Article
 }
 
 // ── Stub panels kept for compilation ────────────────────────────────────────
 @Composable fun SearchPanel() {
+    var searchQuery by remember { mutableStateOf("") }
+    var replaceQuery by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().padding(8.dp)) {
-        OutlinedTextField(value = "", onValueChange = {}, label = { Text("Search") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = "", onValueChange = {}, label = { Text("Replace") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+        OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, label = { Text("Search") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = replaceQuery, onValueChange = { replaceQuery = it }, label = { Text("Replace") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
         Row(Modifier.padding(top = 8.dp)) {
             listOf("Aa", "\\b", ".*").forEach { opt ->
                 Box(Modifier.border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(3.dp))

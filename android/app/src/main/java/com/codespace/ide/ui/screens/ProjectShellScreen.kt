@@ -609,16 +609,10 @@ fun ProjectShellScreen(
 
         } // end outer Column
 
-        // FAB — draggable
+        // FAB — draggable (drag on button only, menu items clickable)
         Box(Modifier.align(Alignment.BottomEnd)
             .padding(end = 16.dp, bottom = 36.dp)
-            .offset { androidx.compose.ui.unit.IntOffset(fabOffsetX.toInt(), fabOffsetY.toInt()) }
-            .pointerInput(Unit) {
-                detectDragGestures { _, dragAmount ->
-                    fabOffsetX = (fabOffsetX + dragAmount.x).coerceIn(-900f, 100f)
-                    fabOffsetY = (fabOffsetY + dragAmount.y).coerceIn(-1600f, 100f)
-                }
-            }) {
+            .offset { androidx.compose.ui.unit.IntOffset(fabOffsetX.toInt(), fabOffsetY.toInt()) }) {
             if (showFab) {
                 Column(
                     Modifier.align(Alignment.BottomEnd).padding(bottom = 60.dp),
@@ -634,6 +628,8 @@ fun ProjectShellScreen(
                                 "Open Terminal" -> { showBottomPanel = true; activeBottomTab = BottomTab.TERMINAL }
                                 "Ask AI"        -> showAiPanel = true
                                 "Run Project"   -> handleMenuAction("Run Program")
+                                "New File"      -> { activePanel = SidePanel.EXPLORER; showNotification("Use Explorer + icon to create file", "info") }
+                                "New Folder"    -> { activePanel = SidePanel.EXPLORER; showNotification("Use Explorer folder+ icon to create folder", "info") }
                             }
                         }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
                             Surface(shape = RoundedCornerShape(4.dp), color = Color(0xFF333333), shadowElevation = 2.dp) {
@@ -648,7 +644,19 @@ fun ProjectShellScreen(
                 }
             }
             Box(
-                Modifier.size(52.dp).shadow(6.dp, CircleShape).background(FabBg, CircleShape).clickable { showFab = !showFab },
+                Modifier.size(52.dp).shadow(6.dp, CircleShape).background(FabBg, CircleShape)
+                    .pointerInput(Unit) {
+                        var isDragging = false
+                        detectDragGestures(
+                            onDragStart = { isDragging = true },
+                            onDragEnd = { isDragging = false },
+                            onDrag = { _, dragAmount ->
+                                fabOffsetX = (fabOffsetX + dragAmount.x).coerceIn(-900f, 100f)
+                                fabOffsetY = (fabOffsetY + dragAmount.y).coerceIn(-1600f, 100f)
+                            }
+                        )
+                    }
+                    .clickable { showFab = !showFab },
                 contentAlignment = Alignment.Center,
             ) { Icon(if (showFab) Icons.Default.Close else Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(24.dp)) }
         }
