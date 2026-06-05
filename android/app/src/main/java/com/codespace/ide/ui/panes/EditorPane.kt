@@ -111,24 +111,7 @@ fun EditorPane(
         }
     }
 
-    // Seed with sample tabs if nothing is open yet (first launch)
-    LaunchedEffect(Unit) {
-        if (tabs.isEmpty()) {
-            tabs.add(
-                EditorTab(
-                    id = "sample_ts", path = "src/index.ts", name = "index.ts",
-                    content = SAMPLE_TS, language = Language.TYPESCRIPT,
-                )
-            )
-            tabs.add(
-                EditorTab(
-                    id = "sample_py", path = "main.py", name = "main.py",
-                    content = SAMPLE_PY, language = Language.PYTHON,
-                )
-            )
-            activeId = "sample_ts"
-        }
-    }
+    // No sample tabs — editor starts empty, waiting for Explorer
 
     Column(Modifier.fillMaxSize()) {
         // Tab bar
