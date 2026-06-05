@@ -165,10 +165,20 @@ fun TerminalPane() {
                             ?: listOf("Permission denied")
                         trimmed == "pwd" -> listOf(workingDir.absolutePath)
                         else -> {
-                            val process = ProcessBuilder("sh", "-c", trimmed)
+                            val termuxPrefix = "/data/data/com.termux/files/usr"
+                            val termuxHome = "/data/data/com.termux/files/home"
+                            val pb = ProcessBuilder("sh", "-c", trimmed)
                                 .directory(workingDir)
                                 .redirectErrorStream(true)
-                                .start()
+                            pb.environment().apply {
+                                put("PREFIX", termuxPrefix)
+                                put("HOME", termuxHome)
+                                put("TMPDIR", "$termuxPrefix/tmp")
+                                put("LANG", "en_US.UTF-8")
+                                put("PATH", "$termuxPrefix/bin:$termuxPrefix/bin/applets:/system/bin:/system/xbin")
+                                put("LD_LIBRARY_PATH", "$termuxPrefix/lib")
+                            }
+                            val process = pb.start()
                             val reader = BufferedReader(InputStreamReader(process.inputStream))
                             val output = mutableListOf<String>()
                             var line: String?
