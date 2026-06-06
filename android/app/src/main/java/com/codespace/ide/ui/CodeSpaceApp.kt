@@ -1,7 +1,7 @@
 package com.codespace.ide.ui
 
-import android.content.Context
-import android.content.Context
+import android.content.Context as AndroidContext
+import android.content.Context as AndroidContext
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,7 +31,7 @@ object Routes {
 fun CodeSpaceApp(tokenStore: SecureTokenStore) {
     val systemDark = isSystemInDarkTheme()
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE) }
+    val prefs = remember { context.getSharedPreferences("app_prefs", AndroidContext.MODE_PRIVATE) }
     var themeName by remember {
         mutableStateOf(prefs.getString("theme_name", if (systemDark) "Dark (Default)" else "Light (Default)") ?: "Light (Default)")
     }

@@ -112,25 +112,6 @@ val GithubDarkEditorColors = EditorColors(
     currentLine = Color(0xFF161B22),
 )
 
-val GithubLightEditorColors = EditorColors(
-    background = Color(0xFFFFFFFF), gutter = Color(0xFF8C959F),
-    text = Color(0xFF1F2328), keyword = Color(0xFFCF222E),
-    string = Color(0xFF0A3069), number = Color(0xFF0550AE),
-    comment = Color(0xFF6E7781), function = Color(0xFF8250DF),
-    type = Color(0xFFCF222E), variable = Color(0xFF1F2328),
-    operator = Color(0xFFCF222E), selection = Color(0x440550AE),
-    currentLine = Color(0xFFF6F8FA),
-)
-
-
-val EyeCareEditorColors = EditorColors(
-    background = Color(0xFFF5F0E8), gutter = Color(0xFF9C8F7A),
-    text = Color(0xFF3C3328), keyword = Color(0xFF7A4F3A),
-    string = Color(0xFF5A7A3A), number = Color(0xFF7A6A3A),
-    comment = Color(0xFF9C8F7A), function = Color(0xFF3A5A7A),
-    type = Color(0xFF7A3A5A), variable = Color(0xFF3C3328),
-    operator = Color(0xFF7A4F3A), selection = Color(0x443A5A7A),
-    currentLine = Color(0xFFEDE8DF),
 )
 
 val EyeCareEditorColors = EditorColors(
