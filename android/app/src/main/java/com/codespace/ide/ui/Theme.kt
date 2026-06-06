@@ -112,6 +112,16 @@ val GithubDarkEditorColors = EditorColors(
     currentLine = Color(0xFF161B22),
 )
 
+val GithubLightEditorColors = EditorColors(
+    background = Color(0xFFFFFFFF), gutter = Color(0xFF8C959F),
+    text = Color(0xFF1F2328), keyword = Color(0xFFCF222E),
+    string = Color(0xFF0A3069), number = Color(0xFF0550AE),
+    comment = Color(0xFF6E7781), function = Color(0xFF8250DF),
+    type = Color(0xFFCF222E), variable = Color(0xFF1F2328),
+    operator = Color(0xFFCF222E), selection = Color(0x440550AE),
+    currentLine = Color(0xFFF6F8FA),
+)
+
 val EyeCareEditorColors = EditorColors(
     background = Color(0xFFF5F0E8), gutter = Color(0xFF9C8F7A),
     text = Color(0xFF3C3328), keyword = Color(0xFF7A4F3A),
@@ -163,7 +173,6 @@ fun themeEditorColors(name: String) = when (name) {
     "GitHub Dark"     -> GithubDarkEditorColors
     "Tokyo Night"     -> TokyoNightEditorColors
     "Nord"            -> NordEditorColors
-    "Eye Care"        -> EyeCareEditorColors
     "Eye Care"        -> EyeCareEditorColors
     "Catppuccin"      -> CatppuccinEditorColors
     "Light (Default)", "Light Modern" -> LightEditorColors
