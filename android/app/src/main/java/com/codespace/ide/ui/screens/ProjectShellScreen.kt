@@ -119,6 +119,8 @@ private val MENU_BAR = listOf(
 fun ProjectShellScreen(
     projectId: String,
     isDark: Boolean,
+    currentTheme: String = if (isDark) "Dark (Default)" else "Light (Default)",
+    onSelectTheme: (String) -> Unit = {},
     onToggleTheme: () -> Unit,
     onBack: () -> Unit,
     tokenStore: SecureTokenStore,

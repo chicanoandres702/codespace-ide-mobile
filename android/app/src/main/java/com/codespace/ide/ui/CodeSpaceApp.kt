@@ -25,11 +25,14 @@ object Routes {
 
 @Composable
 fun CodeSpaceApp(tokenStore: SecureTokenStore) {
-    var darkOverride by remember { mutableStateOf<Boolean?>(null) }
-    val dark = darkOverride ?: isSystemInDarkTheme()
+    val systemDark = isSystemInDarkTheme()
+    var themeName by remember { mutableStateOf(if (systemDark) "Dark (Default)" else "Light (Default)") }
     val startDest = if (tokenStore.refreshToken != null) Routes.HOME else Routes.AUTH
 
-    CodeSpaceTheme(darkTheme = dark) {
+    CodeSpaceTheme(
+        darkTheme = !themeName.contains("Light"),
+        themeName = themeName,
+    ) {
         val nav = rememberNavController()
         NavHost(navController = nav, startDestination = startDest) {
             composable(Routes.AUTH) {
@@ -49,19 +52,21 @@ fun CodeSpaceApp(tokenStore: SecureTokenStore) {
             composable(Routes.PROJECT) { backStackEntry ->
                 val projectId = backStackEntry.arguments?.getString("projectId").orEmpty()
                 ProjectShellScreen(
-                    projectId = projectId,
-                    isDark = dark,
-                    onToggleTheme = { darkOverride = !dark },
-                    onBack = { nav.popBackStack() },
-                    tokenStore = tokenStore,
+                    projectId      = projectId,
+                    isDark         = !themeName.contains("Light"),
+                    currentTheme   = themeName,
+                    onSelectTheme  = { themeName = it },
+                    onToggleTheme  = { themeName = if (themeName.contains("Light")) "Dark (Default)" else "Light (Default)" },
+                    onBack         = { nav.popBackStack() },
+                    tokenStore     = tokenStore,
                 )
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
-                    isDark = dark,
-                    onToggleTheme = { darkOverride = !dark },
-                    onBack = { nav.popBackStack() },
-                    tokenStore = tokenStore,
+                    isDark        = !themeName.contains("Light"),
+                    onToggleTheme = { themeName = if (themeName.contains("Light")) "Dark (Default)" else "Light (Default)" },
+                    onBack        = { nav.popBackStack() },
+                    tokenStore    = tokenStore,
                 )
             }
         }
