@@ -342,8 +342,9 @@ private fun fileIcon(name: String) = when {
 }
 
 @Composable fun ExtensionsPanel() {
+    var extQuery by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().padding(8.dp)) {
-        OutlinedTextField(value = "", onValueChange = {}, label = { Text("Search Extensions") },
+        OutlinedTextField(value = extQuery, onValueChange = { extQuery = it }, label = { Text("Search Extensions") },
             singleLine = true, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         Text("INSTALLED", fontSize = 11.sp, color = Color(0xFF717171))

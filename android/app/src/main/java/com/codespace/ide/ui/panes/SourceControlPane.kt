@@ -32,10 +32,19 @@ import java.io.InputStreamReader
 
 private fun runGit(dir: File, vararg args: String): String {
     return try {
-        val process = ProcessBuilder("git", *args)
+        val gitBin = if (File("/data/data/com.termux/files/usr/bin/git").exists())
+            "/data/data/com.termux/files/usr/bin/git" else "git"
+        val pb = ProcessBuilder(gitBin, *args)
             .directory(dir)
             .redirectErrorStream(true)
-            .start()
+        pb.environment().apply {
+            val prefix = "/data/data/com.termux/files/usr"
+            put("PREFIX", prefix)
+            put("HOME", "/data/data/com.termux/files/home")
+            put("PATH", "$prefix/bin:/system/bin:/system/xbin")
+            put("LD_LIBRARY_PATH", "$prefix/lib")
+        }
+        val process = pb.start()
         val reader = BufferedReader(InputStreamReader(process.inputStream))
         val output = reader.readText()
         process.waitFor()
@@ -53,7 +62,15 @@ fun SourceControlPane() {
     val changes = remember { mutableStateListOf<String>() }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val repoDir = File("/storage/emulated/0/codespace-ide-mobile")
+    // Find the git repo starting from storage root
+    val repoDir = remember {
+        val candidates = listOf(
+            File("/storage/emulated/0/codespace-ide-mobile"),
+            File("/storage/emulated/0"),
+        )
+        candidates.firstOrNull { File(it, ".git").exists() }
+            ?: File("/storage/emulated/0")
+    }
 
     fun refresh() {
         scope.launch {
