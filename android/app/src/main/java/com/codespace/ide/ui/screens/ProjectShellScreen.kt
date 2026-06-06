@@ -193,6 +193,30 @@ private fun ideColors(themeName: String): IdeColors {
             MenuText = Color(0xFF657B83), CmdSelectedBg = Color(0xFF268BD2),
             CmdSelectedText = Color(0xFFFFFFFF), KeyboardToolbarBg = Color(0xFFEEE8D5),
         )
+        "Eye Care" -> IdeColors(
+            BgColor = Color(0xFFF5F0E8), ActivityBarBg = Color(0xFFEDE8DF),
+            ActivityBarIcon = Color(0xFF9C8F7A), ActivityBarIconActive = Color(0xFF7A4F3A),
+            TabBarBg = Color(0xFFEDE8DF), TabActiveBg = Color(0xFFF5F0E8),
+            TabInactiveBg = Color(0xFFEDE8DF), TabActiveIndicator = Color(0xFF7A4F3A),
+            TabText = Color(0xFF3C3328), TabTextInactive = Color(0xFF9C8F7A),
+            DividerColor = Color(0xFFD5CFC4), StatusBarBg = Color(0xFF7A4F3A),
+            PanelBg = Color(0xFFEDE8DF), SectionHeaderText = Color(0xFF9C8F7A),
+            MenuBg = Color(0xFFF5F0E8), MenuBorder = Color(0xFFD5CFC4),
+            MenuText = Color(0xFF3C3328), CmdSelectedBg = Color(0xFF7A4F3A),
+            CmdSelectedText = Color(0xFFFFFFFF), KeyboardToolbarBg = Color(0xFFEDE8DF),
+        )
+        "Eye Care" -> IdeColors(
+            BgColor = Color(0xFFF5F0E8), ActivityBarBg = Color(0xFFEDE8DF),
+            ActivityBarIcon = Color(0xFF9C8F7A), ActivityBarIconActive = Color(0xFF7A4F3A),
+            TabBarBg = Color(0xFFEDE8DF), TabActiveBg = Color(0xFFF5F0E8),
+            TabInactiveBg = Color(0xFFEDE8DF), TabActiveIndicator = Color(0xFF7A4F3A),
+            TabText = Color(0xFF3C3328), TabTextInactive = Color(0xFF9C8F7A),
+            DividerColor = Color(0xFFD5CFC4), StatusBarBg = Color(0xFF7A4F3A),
+            PanelBg = Color(0xFFEDE8DF), SectionHeaderText = Color(0xFF9C8F7A),
+            MenuBg = Color(0xFFF5F0E8), MenuBorder = Color(0xFFD5CFC4),
+            MenuText = Color(0xFF3C3328), CmdSelectedBg = Color(0xFF7A4F3A),
+            CmdSelectedText = Color(0xFFFFFFFF), KeyboardToolbarBg = Color(0xFFEDE8DF),
+        )
         else -> IdeColors( // Light Default, Light Modern, Quiet Light
             BgColor = Color(0xFFFFFFFF), ActivityBarBg = Color(0xFFFFFFFF),
             ActivityBarIcon = Color(0xFF616161), ActivityBarIconActive = Color(0xFF007ACC),
@@ -871,26 +895,39 @@ fun ProjectShellScreen(
                 Column(Modifier.padding(top = 80.dp).fillMaxWidth(0.9f).background(MenuBg, RoundedCornerShape(8.dp)).border(1.dp, MenuBorder, RoundedCornerShape(8.dp)).clickable(enabled = false) {}) {
                     Text("Color Theme", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(16.dp))
                     HorizontalDivider(color = DividerColor)
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clickable { onSelectTheme("Light (Default)"); showColorTheme = false }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                    ) { Text("↺ Reset to Default", fontSize = 13.sp, color = Color(0xFF007ACC)) }
+                    HorizontalDivider(color = DividerColor)
                     listOf(
                         "Light (Default)" to false,
-                        "Light Modern" to false,
-                        "GitHub Light" to false,
-                        "Quiet Light" to false,
-                        "Solarized Light" to false,
+                        "Eye Care" to false,
                         "Dark (Default)" to true,
-                        "Dark Modern" to true,
-                        "Dracula" to true,
                         "AMOLED Black" to true,
-                        "Monokai" to true,
-                        "One Dark Pro" to true,
-                        "GitHub Dark" to true,
-                        "Tokyo Night" to true,
+                        "Dracula" to true,
                         "Nord" to true,
+                        "Tokyo Night" to true,
+                        "One Dark Pro" to true,
+                        "Monokai" to true,
                         "Catppuccin" to true,
+                        "GitHub Dark" to true,
+                        "GitHub Light" to false,
+                        "Solarized Light" to false,
                     ).forEach { (name, dark) ->
-                        Row(Modifier.fillMaxWidth().clickable { if (dark != isDark) onToggleTheme(); showColorTheme = false }.padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(name, fontSize = 13.sp, color = MenuText)
-                            Text(if (dark) "dark" else "light", fontSize = 11.sp, color = TabTextInactive)
+                        val isActive = name == currentTheme
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .background(if (isActive) Color(0xFF0060C0).copy(alpha = 0.15f) else Color.Transparent)
+                                .clickable { onSelectTheme(name); showColorTheme = false }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        ) {
+                            Text(name, fontSize = 13.sp, color = if (isActive) Color(0xFF0060C0) else MenuText,
+                                fontWeight = if (isActive) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal)
+                            Text(if (dark) "🌙" else "☀", fontSize = 11.sp, color = TabTextInactive)
                         }
                     }
                     Spacer(Modifier.height(8.dp))

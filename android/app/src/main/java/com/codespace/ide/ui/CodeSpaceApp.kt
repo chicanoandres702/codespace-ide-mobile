@@ -1,11 +1,15 @@
 package com.codespace.ide.ui
 
+import android.content.Context
+import android.content.Context
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -26,7 +30,15 @@ object Routes {
 @Composable
 fun CodeSpaceApp(tokenStore: SecureTokenStore) {
     val systemDark = isSystemInDarkTheme()
-    var themeName by remember { mutableStateOf(if (systemDark) "Dark (Default)" else "Light (Default)") }
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE) }
+    var themeName by remember {
+        mutableStateOf(prefs.getString("theme_name", if (systemDark) "Dark (Default)" else "Light (Default)") ?: "Light (Default)")
+    }
+    fun saveTheme(name: String) {
+        themeName = name
+        prefs.edit().putString("theme_name", name).apply()
+    }
     val startDest = if (tokenStore.refreshToken != null) Routes.HOME else Routes.AUTH
 
     CodeSpaceTheme(
@@ -55,8 +67,8 @@ fun CodeSpaceApp(tokenStore: SecureTokenStore) {
                     projectId      = projectId,
                     isDark         = !themeName.contains("Light"),
                     currentTheme   = themeName,
-                    onSelectTheme  = { themeName = it },
-                    onToggleTheme  = { themeName = if (themeName.contains("Light")) "Dark (Default)" else "Light (Default)" },
+                    onSelectTheme  = { saveTheme(it) },
+                    onToggleTheme  = { saveTheme(if (themeName.contains("Light")) "Dark (Default)" else "Light (Default)") },
                     onBack         = { nav.popBackStack() },
                     tokenStore     = tokenStore,
                 )
