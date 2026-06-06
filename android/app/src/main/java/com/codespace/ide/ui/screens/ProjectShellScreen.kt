@@ -33,27 +33,180 @@ import androidx.compose.ui.unit.sp
 import com.codespace.ide.data.SecureTokenStore
 import com.codespace.ide.ui.panes.*
 
-private val BgColor               = Color(0xFFFFFFFF)
-private val ActivityBarBg         = Color(0xFFFFFFFF)
-private val ActivityBarIcon       = Color(0xFF616161)
-private val ActivityBarIconActive = Color(0xFF007ACC)
-private val TabBarBg              = Color(0xFFECECEC)
-private val TabActiveBg           = Color(0xFFFFFFFF)
-private val TabInactiveBg         = Color(0xFFECECEC)
-private val TabActiveIndicator    = Color(0xFF007ACC)
-private val TabText               = Color(0xFF333333)
-private val TabTextInactive       = Color(0xFF717171)
-private val DividerColor          = Color(0xFFE0E0E0)
-private val StatusBarBg           = Color(0xFFFFFFFF)
-private val PanelBg               = Color(0xFFFFFFFF)
-private val SectionHeaderText     = Color(0xFF717171)
-private val MenuBg                = Color(0xFFFFFFFF)
-private val MenuBorder            = Color(0xFFD4D4D4)
-private val MenuText              = Color(0xFF333333)
-private val CmdSelectedBg         = Color(0xFF0060C0)
-private val CmdSelectedText       = Color(0xFFFFFFFF)
-private val KeyboardToolbarBg     = Color(0xFFF0F0F0)
-private val FabBg                 = Color(0xFF007ACC)
+// ── Theme-aware colors (read from MaterialTheme + currentTheme name) ──────────
+private data class IdeColors(
+    val BgColor: Color,
+    val ActivityBarBg: Color,
+    val ActivityBarIcon: Color,
+    val ActivityBarIconActive: Color,
+    val TabBarBg: Color,
+    val TabActiveBg: Color,
+    val TabInactiveBg: Color,
+    val TabActiveIndicator: Color,
+    val TabText: Color,
+    val TabTextInactive: Color,
+    val DividerColor: Color,
+    val StatusBarBg: Color,
+    val PanelBg: Color,
+    val SectionHeaderText: Color,
+    val MenuBg: Color,
+    val MenuBorder: Color,
+    val MenuText: Color,
+    val CmdSelectedBg: Color,
+    val CmdSelectedText: Color,
+    val KeyboardToolbarBg: Color,
+)
+
+@Composable
+private fun ideColors(themeName: String): IdeColors {
+    val isDark = !themeName.contains("Light")
+    return when (themeName) {
+        "Dracula" -> IdeColors(
+            BgColor = Color(0xFF282A36), ActivityBarBg = Color(0xFF21222C),
+            ActivityBarIcon = Color(0xFF6272A4), ActivityBarIconActive = Color(0xFFBD93F9),
+            TabBarBg = Color(0xFF21222C), TabActiveBg = Color(0xFF282A36),
+            TabInactiveBg = Color(0xFF21222C), TabActiveIndicator = Color(0xFFBD93F9),
+            TabText = Color(0xFFF8F8F2), TabTextInactive = Color(0xFF6272A4),
+            DividerColor = Color(0xFF44475A), StatusBarBg = Color(0xFF6272A4),
+            PanelBg = Color(0xFF21222C), SectionHeaderText = Color(0xFF6272A4),
+            MenuBg = Color(0xFF282A36), MenuBorder = Color(0xFF44475A),
+            MenuText = Color(0xFFF8F8F2), CmdSelectedBg = Color(0xFF44475A),
+            CmdSelectedText = Color(0xFFF8F8F2), KeyboardToolbarBg = Color(0xFF21222C),
+        )
+        "AMOLED Black" -> IdeColors(
+            BgColor = Color(0xFF000000), ActivityBarBg = Color(0xFF0A0A0A),
+            ActivityBarIcon = Color(0xFF555555), ActivityBarIconActive = Color(0xFFFF79C6),
+            TabBarBg = Color(0xFF0A0A0A), TabActiveBg = Color(0xFF000000),
+            TabInactiveBg = Color(0xFF0A0A0A), TabActiveIndicator = Color(0xFFFF79C6),
+            TabText = Color(0xFFEEEEEE), TabTextInactive = Color(0xFF555555),
+            DividerColor = Color(0xFF222222), StatusBarBg = Color(0xFF0A0A0A),
+            PanelBg = Color(0xFF0A0A0A), SectionHeaderText = Color(0xFF555555),
+            MenuBg = Color(0xFF111111), MenuBorder = Color(0xFF222222),
+            MenuText = Color(0xFFEEEEEE), CmdSelectedBg = Color(0xFFFF79C6),
+            CmdSelectedText = Color(0xFF000000), KeyboardToolbarBg = Color(0xFF0A0A0A),
+        )
+        "Monokai" -> IdeColors(
+            BgColor = Color(0xFF272822), ActivityBarBg = Color(0xFF1E1F1C),
+            ActivityBarIcon = Color(0xFF75715E), ActivityBarIconActive = Color(0xFFA6E22E),
+            TabBarBg = Color(0xFF1E1F1C), TabActiveBg = Color(0xFF272822),
+            TabInactiveBg = Color(0xFF1E1F1C), TabActiveIndicator = Color(0xFFA6E22E),
+            TabText = Color(0xFFF8F8F2), TabTextInactive = Color(0xFF75715E),
+            DividerColor = Color(0xFF3E3D32), StatusBarBg = Color(0xFF1E1F1C),
+            PanelBg = Color(0xFF1E1F1C), SectionHeaderText = Color(0xFF75715E),
+            MenuBg = Color(0xFF272822), MenuBorder = Color(0xFF3E3D32),
+            MenuText = Color(0xFFF8F8F2), CmdSelectedBg = Color(0xFFA6E22E),
+            CmdSelectedText = Color(0xFF272822), KeyboardToolbarBg = Color(0xFF1E1F1C),
+        )
+        "Nord" -> IdeColors(
+            BgColor = Color(0xFF2E3440), ActivityBarBg = Color(0xFF242933),
+            ActivityBarIcon = Color(0xFF4C566A), ActivityBarIconActive = Color(0xFF88C0D0),
+            TabBarBg = Color(0xFF242933), TabActiveBg = Color(0xFF2E3440),
+            TabInactiveBg = Color(0xFF242933), TabActiveIndicator = Color(0xFF88C0D0),
+            TabText = Color(0xFFECEFF4), TabTextInactive = Color(0xFF4C566A),
+            DividerColor = Color(0xFF3B4252), StatusBarBg = Color(0xFF242933),
+            PanelBg = Color(0xFF242933), SectionHeaderText = Color(0xFF4C566A),
+            MenuBg = Color(0xFF2E3440), MenuBorder = Color(0xFF3B4252),
+            MenuText = Color(0xFFECEFF4), CmdSelectedBg = Color(0xFF88C0D0),
+            CmdSelectedText = Color(0xFF2E3440), KeyboardToolbarBg = Color(0xFF242933),
+        )
+        "Tokyo Night" -> IdeColors(
+            BgColor = Color(0xFF1A1B26), ActivityBarBg = Color(0xFF16161E),
+            ActivityBarIcon = Color(0xFF565F89), ActivityBarIconActive = Color(0xFF7DCFFF),
+            TabBarBg = Color(0xFF16161E), TabActiveBg = Color(0xFF1A1B26),
+            TabInactiveBg = Color(0xFF16161E), TabActiveIndicator = Color(0xFF7DCFFF),
+            TabText = Color(0xFFC0CAF5), TabTextInactive = Color(0xFF565F89),
+            DividerColor = Color(0xFF292E42), StatusBarBg = Color(0xFF16161E),
+            PanelBg = Color(0xFF16161E), SectionHeaderText = Color(0xFF565F89),
+            MenuBg = Color(0xFF1A1B26), MenuBorder = Color(0xFF292E42),
+            MenuText = Color(0xFFC0CAF5), CmdSelectedBg = Color(0xFF7DCFFF),
+            CmdSelectedText = Color(0xFF1A1B26), KeyboardToolbarBg = Color(0xFF16161E),
+        )
+        "One Dark Pro" -> IdeColors(
+            BgColor = Color(0xFF282C34), ActivityBarBg = Color(0xFF21252B),
+            ActivityBarIcon = Color(0xFF5C6370), ActivityBarIconActive = Color(0xFF61AFEF),
+            TabBarBg = Color(0xFF21252B), TabActiveBg = Color(0xFF282C34),
+            TabInactiveBg = Color(0xFF21252B), TabActiveIndicator = Color(0xFF61AFEF),
+            TabText = Color(0xFFABB2BF), TabTextInactive = Color(0xFF5C6370),
+            DividerColor = Color(0xFF3E4451), StatusBarBg = Color(0xFF21252B),
+            PanelBg = Color(0xFF21252B), SectionHeaderText = Color(0xFF5C6370),
+            MenuBg = Color(0xFF282C34), MenuBorder = Color(0xFF3E4451),
+            MenuText = Color(0xFFABB2BF), CmdSelectedBg = Color(0xFF61AFEF),
+            CmdSelectedText = Color(0xFF282C34), KeyboardToolbarBg = Color(0xFF21252B),
+        )
+        "GitHub Dark" -> IdeColors(
+            BgColor = Color(0xFF0D1117), ActivityBarBg = Color(0xFF010409),
+            ActivityBarIcon = Color(0xFF484F58), ActivityBarIconActive = Color(0xFFD2A8FF),
+            TabBarBg = Color(0xFF010409), TabActiveBg = Color(0xFF0D1117),
+            TabInactiveBg = Color(0xFF010409), TabActiveIndicator = Color(0xFFD2A8FF),
+            TabText = Color(0xFFE6EDF3), TabTextInactive = Color(0xFF484F58),
+            DividerColor = Color(0xFF21262D), StatusBarBg = Color(0xFF010409),
+            PanelBg = Color(0xFF010409), SectionHeaderText = Color(0xFF484F58),
+            MenuBg = Color(0xFF0D1117), MenuBorder = Color(0xFF21262D),
+            MenuText = Color(0xFFE6EDF3), CmdSelectedBg = Color(0xFFD2A8FF),
+            CmdSelectedText = Color(0xFF0D1117), KeyboardToolbarBg = Color(0xFF010409),
+        )
+        "Catppuccin" -> IdeColors(
+            BgColor = Color(0xFF1E1E2E), ActivityBarBg = Color(0xFF181825),
+            ActivityBarIcon = Color(0xFF6C7086), ActivityBarIconActive = Color(0xFF89B4FA),
+            TabBarBg = Color(0xFF181825), TabActiveBg = Color(0xFF1E1E2E),
+            TabInactiveBg = Color(0xFF181825), TabActiveIndicator = Color(0xFF89B4FA),
+            TabText = Color(0xFFCDD6F4), TabTextInactive = Color(0xFF6C7086),
+            DividerColor = Color(0xFF313244), StatusBarBg = Color(0xFF181825),
+            PanelBg = Color(0xFF181825), SectionHeaderText = Color(0xFF6C7086),
+            MenuBg = Color(0xFF1E1E2E), MenuBorder = Color(0xFF313244),
+            MenuText = Color(0xFFCDD6F4), CmdSelectedBg = Color(0xFF89B4FA),
+            CmdSelectedText = Color(0xFF1E1E2E), KeyboardToolbarBg = Color(0xFF181825),
+        )
+        "Dark (Default)", "Dark Modern" -> IdeColors(
+            BgColor = Color(0xFF1E1E1E), ActivityBarBg = Color(0xFF333333),
+            ActivityBarIcon = Color(0xFF858585), ActivityBarIconActive = Color(0xFFFFFFFF),
+            TabBarBg = Color(0xFF2D2D2D), TabActiveBg = Color(0xFF1E1E1E),
+            TabInactiveBg = Color(0xFF2D2D2D), TabActiveIndicator = Color(0xFF007ACC),
+            TabText = Color(0xFFFFFFFF), TabTextInactive = Color(0xFF969696),
+            DividerColor = Color(0xFF444444), StatusBarBg = Color(0xFF007ACC),
+            PanelBg = Color(0xFF252526), SectionHeaderText = Color(0xFF969696),
+            MenuBg = Color(0xFF252526), MenuBorder = Color(0xFF454545),
+            MenuText = Color(0xFFCCCCCC), CmdSelectedBg = Color(0xFF0060C0),
+            CmdSelectedText = Color(0xFFFFFFFF), KeyboardToolbarBg = Color(0xFF2D2D2D),
+        )
+        "GitHub Light" -> IdeColors(
+            BgColor = Color(0xFFFFFFFF), ActivityBarBg = Color(0xFFF6F8FA),
+            ActivityBarIcon = Color(0xFF57606A), ActivityBarIconActive = Color(0xFF0550AE),
+            TabBarBg = Color(0xFFF6F8FA), TabActiveBg = Color(0xFFFFFFFF),
+            TabInactiveBg = Color(0xFFF6F8FA), TabActiveIndicator = Color(0xFF0550AE),
+            TabText = Color(0xFF1F2328), TabTextInactive = Color(0xFF57606A),
+            DividerColor = Color(0xFFD0D7DE), StatusBarBg = Color(0xFF0550AE),
+            PanelBg = Color(0xFFF6F8FA), SectionHeaderText = Color(0xFF57606A),
+            MenuBg = Color(0xFFFFFFFF), MenuBorder = Color(0xFFD0D7DE),
+            MenuText = Color(0xFF1F2328), CmdSelectedBg = Color(0xFF0550AE),
+            CmdSelectedText = Color(0xFFFFFFFF), KeyboardToolbarBg = Color(0xFFF6F8FA),
+        )
+        "Solarized Light" -> IdeColors(
+            BgColor = Color(0xFFFDF6E3), ActivityBarBg = Color(0xFFEEE8D5),
+            ActivityBarIcon = Color(0xFF93A1A1), ActivityBarIconActive = Color(0xFF268BD2),
+            TabBarBg = Color(0xFFEEE8D5), TabActiveBg = Color(0xFFFDF6E3),
+            TabInactiveBg = Color(0xFFEEE8D5), TabActiveIndicator = Color(0xFF268BD2),
+            TabText = Color(0xFF657B83), TabTextInactive = Color(0xFF93A1A1),
+            DividerColor = Color(0xFFD3CBB8), StatusBarBg = Color(0xFF268BD2),
+            PanelBg = Color(0xFFEEE8D5), SectionHeaderText = Color(0xFF93A1A1),
+            MenuBg = Color(0xFFFDF6E3), MenuBorder = Color(0xFFD3CBB8),
+            MenuText = Color(0xFF657B83), CmdSelectedBg = Color(0xFF268BD2),
+            CmdSelectedText = Color(0xFFFFFFFF), KeyboardToolbarBg = Color(0xFFEEE8D5),
+        )
+        else -> IdeColors( // Light Default, Light Modern, Quiet Light
+            BgColor = Color(0xFFFFFFFF), ActivityBarBg = Color(0xFFFFFFFF),
+            ActivityBarIcon = Color(0xFF616161), ActivityBarIconActive = Color(0xFF007ACC),
+            TabBarBg = Color(0xFFECECEC), TabActiveBg = Color(0xFFFFFFFF),
+            TabInactiveBg = Color(0xFFECECEC), TabActiveIndicator = Color(0xFF007ACC),
+            TabText = Color(0xFF333333), TabTextInactive = Color(0xFF717171),
+            DividerColor = Color(0xFFE0E0E0), StatusBarBg = Color(0xFF007ACC),
+            PanelBg = Color(0xFFF3F3F3), SectionHeaderText = Color(0xFF717171),
+            MenuBg = Color(0xFFFFFFFF), MenuBorder = Color(0xFFD4D4D4),
+            MenuText = Color(0xFF333333), CmdSelectedBg = Color(0xFF0060C0),
+            CmdSelectedText = Color(0xFFFFFFFF), KeyboardToolbarBg = Color(0xFFF0F0F0),
+        )
+    }
+}
 
 private enum class SidePanel { EXPLORER, SEARCH, GIT, RUN, EXTENSIONS }
 private enum class BottomTab  { PROBLEMS, OUTPUT, TERMINAL, DEBUG, PORTS }
@@ -127,12 +280,31 @@ fun ProjectShellScreen(
     tokenStore: SecureTokenStore,
 ) {
     val density = LocalDensity.current
+    val t = ideColors(currentTheme)
+    val BgColor = t.BgColor
+    val ActivityBarBg = t.ActivityBarBg
+    val ActivityBarIcon = t.ActivityBarIcon
+    val ActivityBarIconActive = t.ActivityBarIconActive
+    val TabBarBg = t.TabBarBg
+    val TabActiveBg = t.TabActiveBg
+    val TabInactiveBg = t.TabInactiveBg
+    val TabActiveIndicator = t.TabActiveIndicator
+    val TabText = t.TabText
+    val TabTextInactive = t.TabTextInactive
+    val DividerColor = t.DividerColor
+    val StatusBarBg = t.StatusBarBg
+    val PanelBg = t.PanelBg
+    val SectionHeaderText = t.SectionHeaderText
+    val MenuBg = t.MenuBg
+    val MenuBorder = t.MenuBorder
+    val MenuText = t.MenuText
+    val CmdSelectedBg = t.CmdSelectedBg
+    val CmdSelectedText = t.CmdSelectedText
+    val KeyboardToolbarBg = t.KeyboardToolbarBg
     var activePanel        by remember { mutableStateOf<SidePanel?>(null) }
     var showBottomPanel    by remember { mutableStateOf(true) }
     var showAiPanel        by remember { mutableStateOf(false) }
-    var showFab            by remember { mutableStateOf(false) }
-    var fabOffsetX         by remember { mutableFloatStateOf(0f) }
-    var fabOffsetY         by remember { mutableFloatStateOf(0f) }
+
     var activeBottomTab    by remember { mutableStateOf(BottomTab.TERMINAL) }
     var totalWidth         by remember { mutableFloatStateOf(1080f) }
     var totalHeight        by remember { mutableFloatStateOf(1920f) }
@@ -611,58 +783,6 @@ fun ProjectShellScreen(
             }
 
         } // end outer Column
-
-        // FAB — draggable (drag on button only, menu items clickable)
-        Box(Modifier.align(Alignment.BottomEnd)
-            .padding(end = 16.dp, bottom = 36.dp)
-            .offset { androidx.compose.ui.unit.IntOffset(fabOffsetX.toInt(), fabOffsetY.toInt()) }) {
-            if (showFab) {
-                Column(
-                    Modifier.align(Alignment.BottomEnd).padding(bottom = 60.dp),
-                    horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    listOf("New File" to Icons.Default.Add, "New Folder" to Icons.Default.CreateNewFolder,
-                        "Run Project" to Icons.Default.PlayArrow, "Open Terminal" to Icons.Default.Computer,
-                        "Ask AI" to Icons.Default.AutoAwesome,
-                    ).forEach { (label, icon) ->
-                        Row(Modifier.clickable {
-                            showFab = false
-                            when (label) {
-                                "Open Terminal" -> { showBottomPanel = true; activeBottomTab = BottomTab.TERMINAL }
-                                "Ask AI"        -> showAiPanel = true
-                                "Run Project"   -> handleMenuAction("Run Program")
-                                "New File"      -> { activePanel = SidePanel.EXPLORER; showNotification("Use Explorer + icon to create file", "info") }
-                                "New Folder"    -> { activePanel = SidePanel.EXPLORER; showNotification("Use Explorer folder+ icon to create folder", "info") }
-                            }
-                        }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-                            Surface(shape = RoundedCornerShape(4.dp), color = Color(0xFF333333), shadowElevation = 2.dp) {
-                                Text(label, fontSize = 12.sp, color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Box(Modifier.size(40.dp).background(FabBg, CircleShape), contentAlignment = Alignment.Center) {
-                                Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                            }
-                        }
-                    }
-                }
-            }
-            Box(
-                Modifier.size(52.dp).shadow(6.dp, CircleShape).background(FabBg, CircleShape)
-                    .pointerInput(Unit) {
-                        var isDragging = false
-                        detectDragGestures(
-                            onDragStart = { isDragging = true },
-                            onDragEnd = { isDragging = false },
-                            onDrag = { _, dragAmount ->
-                                fabOffsetX = (fabOffsetX + dragAmount.x).coerceIn(-900f, 100f)
-                                fabOffsetY = (fabOffsetY + dragAmount.y).coerceIn(-1600f, 100f)
-                            }
-                        )
-                    }
-                    .clickable { showFab = !showFab },
-                contentAlignment = Alignment.Center,
-            ) { Icon(if (showFab) Icons.Default.Close else Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(24.dp)) }
-        }
 
         // Notification
         if (notificationMsg != null) {
