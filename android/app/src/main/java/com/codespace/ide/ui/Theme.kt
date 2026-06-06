@@ -112,8 +112,6 @@ val GithubDarkEditorColors = EditorColors(
     currentLine = Color(0xFF161B22),
 )
 
-)
-
 val EyeCareEditorColors = EditorColors(
     background = Color(0xFFF5F0E8), gutter = Color(0xFF9C8F7A),
     text = Color(0xFF3C3328), keyword = Color(0xFF7A4F3A),
