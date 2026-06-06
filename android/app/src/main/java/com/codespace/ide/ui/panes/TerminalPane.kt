@@ -32,281 +32,169 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.codespace.ide.terminal.TerminalSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.BufferedWriter
 import java.io.File
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 
 private const val TERMINAL_PREFS = "terminal_history"
-private const val TERMUX_PREFIX = "/data/data/com.termux/files/usr"
-private const val TERMUX_HOME = "/data/data/com.termux/files/home"
-private const val TERMUX_BASH = "/data/data/com.termux/files/usr/bin/bash"
+private const val TERMUX_PREFIX  = "/data/data/com.termux/files/usr"
+private const val TERMUX_HOME    = "/data/data/com.termux/files/home"
+private const val TERMUX_BASH    = "/data/data/com.termux/files/usr/bin/bash"
 
 enum class TerminalMode { LOCAL, CODESPACE }
 
-data class TerminalSession(
-    val id: String,
-    val name: String,
-    val lines: MutableList<String> = mutableListOf(),
-    var workingDir: String = TERMUX_HOME,
-    var mode: TerminalMode = TerminalMode.LOCAL,
-    var commandHistory: MutableList<String> = mutableListOf(),
-    var historyIndex: Int = -1,
-)
+// One live session per tab
+private class LiveSession(val id: String, val name: String, mode: TerminalMode) {
+    val lines   = mutableStateListOf<String>()
+    val history = mutableListOf<String>()
+    var workingDir by mutableStateOf(TERMUX_HOME)
+    var mode by mutableStateOf(mode)
+    var connected by mutableStateOf(false)
 
-// Persistent shell process per session
-private val shellProcesses = mutableMapOf<String, Process>()
-private val shellWriters = mutableMapOf<String, BufferedWriter>()
+    // Underlying shell
+    private var session: TerminalSession? = null
 
-private fun getTermuxEnv(): Map<String, String> = mapOf(
-    "PREFIX" to TERMUX_PREFIX,
-    "HOME" to TERMUX_HOME,
-    "TMPDIR" to "$TERMUX_PREFIX/tmp",
-    "LANG" to "en_US.UTF-8",
-    "TERM" to "xterm-256color",
-    "PATH" to "$TERMUX_PREFIX/bin:$TERMUX_PREFIX/bin/applets:/system/bin:/system/xbin",
-    "LD_LIBRARY_PATH" to "$TERMUX_PREFIX/lib",
-    "SHELL" to TERMUX_BASH,
-)
-
-private fun startShell(sessionId: String, workingDir: String): Boolean {
-    return try {
-        shellProcesses[sessionId]?.destroy()
-        val pb = ProcessBuilder(TERMUX_BASH, "--login", "-i")
-            .directory(File(workingDir))
-            .redirectErrorStream(true)
-        pb.environment().putAll(getTermuxEnv())
-        val process = pb.start()
-        shellProcesses[sessionId] = process
-        shellWriters[sessionId] = BufferedWriter(OutputStreamWriter(process.outputStream))
-        true
-    } catch (e: Exception) {
-        false
-    }
-}
-
-private fun killShell(sessionId: String) {
-    shellWriters[sessionId]?.close()
-    shellProcesses[sessionId]?.destroy()
-    shellWriters.remove(sessionId)
-    shellProcesses.remove(sessionId)
-}
-
-fun saveTerminals(context: Context, sessions: List<TerminalSession>, activeId: String) {
-    val arr = JSONArray()
-    sessions.forEach { s ->
-        val linesArr = JSONArray()
-        s.lines.takeLast(200).forEach { linesArr.put(it) }
-        arr.put(JSONObject()
-            .put("id", s.id)
-            .put("name", s.name)
-            .put("lines", linesArr)
-            .put("workingDir", s.workingDir)
-            .put("mode", s.mode.name))
-    }
-    context.getSharedPreferences(TERMINAL_PREFS, Context.MODE_PRIVATE)
-        .edit()
-        .putString("sessions", arr.toString())
-        .putString("activeId", activeId)
-        .apply()
-}
-
-fun loadTerminals(context: Context): Pair<List<TerminalSession>, String> {
-    val prefs = context.getSharedPreferences(TERMINAL_PREFS, Context.MODE_PRIVATE)
-    val str = prefs.getString("sessions", null)
-    val activeId = prefs.getString("activeId", "1") ?: "1"
-    if (str == null) return Pair(listOf(TerminalSession("1", "bash")), "1")
-    return try {
-        val arr = JSONArray(str)
-        val sessions = (0 until arr.length()).map {
-            val obj = arr.getJSONObject(it)
-            val linesArr = obj.getJSONArray("lines")
-            val lines = (0 until linesArr.length()).map { i -> linesArr.getString(i) }.toMutableList()
-            TerminalSession(
-                id = obj.getString("id"),
-                name = obj.getString("name"),
-                lines = lines,
-                workingDir = obj.optString("workingDir", TERMUX_HOME),
-                mode = try { TerminalMode.valueOf(obj.optString("mode", "LOCAL")) } catch (e: Exception) { TerminalMode.LOCAL },
-            )
+    fun start(scope: kotlinx.coroutines.CoroutineScope) {
+        if (connected) return
+        val shell = if (File(TERMUX_BASH).exists()) TERMUX_BASH else "/system/bin/sh"
+        val ts = TerminalSession(workingDir = workingDir, shell = shell)
+        session = ts
+        connected = true
+        lines.add("🖥  Local • Termux bash")
+        lines.add("📁 $workingDir")
+        scope.launch(Dispatchers.IO) {
+            ts.start().collect { chunk ->
+                // Split chunk into lines and append
+                chunk.split("\n").forEach { line ->
+                    val cleaned = line
+                        .replace(Regex("\u001B\\[[0-9;]*[mK]"), "") // strip ANSI colors
+                        .replace(Regex("\u001B\\[[0-9;]*[A-Z]"), "")
+                        .trimEnd()
+                    if (cleaned.isNotEmpty()) lines.add(cleaned)
+                }
+            }
+            connected = false
         }
-        Pair(sessions, activeId)
-    } catch (e: Exception) {
-        Pair(listOf(TerminalSession("1", "bash")), "1")
     }
+
+    fun send(input: String) {
+        session?.send(input)
+    }
+
+    fun sendLine(cmd: String) {
+        if (cmd.isNotBlank()) history.add(0, cmd)
+        if (history.size > 200) history.removeLastOrNull()
+        session?.send("$cmd\n")
+    }
+
+    fun stop() {
+        session?.stop()
+        connected = false
+    }
+
+    fun clear() = lines.clear()
 }
+
+// Global session store (survives recomposition)
+private val liveSessions = mutableMapOf<String, LiveSession>()
 
 @Composable
 fun TerminalPane() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val scope   = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    val (savedSessions, savedActiveId) = remember { loadTerminals(context) }
-    val sessions = remember { mutableStateListOf(*savedSessions.toTypedArray()) }
-    var activeId by remember { mutableStateOf(savedActiveId) }
-    var input by remember { mutableStateOf("") }
-    var historyIdx by remember { mutableStateOf(-1) }
-    val listState = rememberLazyListState()
-    val focusRequester = remember { FocusRequester() }
-    var showTerminalMenu by remember { mutableStateOf(false) }
-    var showCodespaceDialog by remember { mutableStateOf(false) }
-    var csHost by remember { mutableStateOf("") }
-    var csUser by remember { mutableStateOf("") }
-
-    val activeSession = sessions.firstOrNull { it.id == activeId } ?: sessions.firstOrNull()
-    val isLocalMode = activeSession?.mode == TerminalMode.LOCAL
-
-    // Start shell for active session if not running
-    LaunchedEffect(activeId) {
-        val session = sessions.firstOrNull { it.id == activeId } ?: return@LaunchedEffect
-        if (session.mode == TerminalMode.LOCAL && !shellProcesses.containsKey(activeId)) {
-            withContext(Dispatchers.IO) {
-                val started = startShell(activeId, session.workingDir)
-                if (started) {
-                    session.lines.add("🖥  Local Terminal — Termux bash")
-                    session.lines.add("📁 ${session.workingDir}")
-                    // Read initial shell output
-                    kotlinx.coroutines.delay(500)
-                    val reader = BufferedReader(InputStreamReader(shellProcesses[activeId]!!.inputStream))
-                    // Drain any initial output
-                }
+    // Tab list
+    val tabs = remember {
+        mutableStateListOf<LiveSession>().also { list ->
+            if (list.isEmpty()) {
+                val s = LiveSession("1", "bash", TerminalMode.LOCAL)
+                liveSessions["1"] = s
+                list.add(s)
             }
         }
     }
+    var activeId by remember { mutableStateOf(tabs.first().id) }
+    var input    by remember { mutableStateOf("") }
+    var histIdx  by remember { mutableStateOf(-1) }
+    val listState = rememberLazyListState()
+    val focusRequester = remember { FocusRequester() }
+    var showMenu by remember { mutableStateOf(false) }
+    var showCodespaceDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(activeSession?.lines?.size) {
-        val size = activeSession?.lines?.size ?: 0
+    val active = tabs.firstOrNull { it.id == activeId } ?: tabs.firstOrNull()
+
+    // Auto-start shell when tab becomes active
+    LaunchedEffect(activeId) {
+        val session = tabs.firstOrNull { it.id == activeId } ?: return@LaunchedEffect
+        if (session.mode == TerminalMode.LOCAL && !session.connected) {
+            session.start(scope)
+        }
+    }
+
+    // Auto-scroll
+    LaunchedEffect(active?.lines?.size) {
+        val size = active?.lines?.size ?: 0
         if (size > 0) listState.animateScrollToItem(size - 1)
     }
 
-    fun saveAll() = saveTerminals(context, sessions, activeId)
-
-    fun addTerminal(mode: TerminalMode = TerminalMode.LOCAL) {
-        val newId = System.currentTimeMillis().toString()
-        val num = sessions.size + 1
-        val name = if (mode == TerminalMode.LOCAL) "bash $num" else "codespace $num"
-        sessions.add(TerminalSession(newId, name, mode = mode))
-        activeId = newId
-        saveAll()
+    fun newTab(mode: TerminalMode = TerminalMode.LOCAL) {
+        val id   = System.currentTimeMillis().toString()
+        val num  = tabs.size + 1
+        val name = if (mode == TerminalMode.LOCAL) "bash $num" else "cloud $num"
+        val s    = LiveSession(id, name, mode)
+        liveSessions[id] = s
+        tabs.add(s)
+        activeId = id
+        if (mode == TerminalMode.CODESPACE) showCodespaceDialog = true
     }
 
-    fun closeTerminal(id: String) {
-        if (sessions.size <= 1) return
-        val idx = sessions.indexOfFirst { it.id == id }
-        sessions.removeAt(idx)
-        killShell(id)
-        if (activeId == id) activeId = sessions.getOrNull(idx - 1)?.id ?: sessions.first().id
-        saveAll()
+    fun closeTab(id: String) {
+        if (tabs.size <= 1) return
+        val idx = tabs.indexOfFirst { it.id == id }
+        tabs[idx].stop()
+        liveSessions.remove(id)
+        tabs.removeAt(idx)
+        if (activeId == id) activeId = tabs.getOrNull(idx - 1)?.id ?: tabs.first().id
     }
 
-    fun clearTerminal() {
-        val session = sessions.firstOrNull { it.id == activeId } ?: return
-        session.lines.clear()
-        saveAll()
-    }
-
-    fun runLocalCommand(cmd: String) {
-        val session = sessions.firstOrNull { it.id == activeId } ?: return
-        val sessionIdx = sessions.indexOfFirst { it.id == activeId }
+    fun sendCmd(cmd: String) {
+        val s = active ?: return
         val trimmed = cmd.trim()
-        if (trimmed.isBlank()) return
-
-        // Add to history
-        session.commandHistory.add(0, trimmed)
-        if (session.commandHistory.size > 100) session.commandHistory.removeLast()
-        historyIdx = -1
-
-        session.lines.add("❯ $trimmed")
-
-        scope.launch {
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    val workingDir = File(session.workingDir)
-                    when {
-                        trimmed == "clear" -> { session.lines.clear(); listOf() }
-                        trimmed == "pwd" -> listOf(session.workingDir)
-                        trimmed.startsWith("cd ") -> {
-                            val newPath = trimmed.substring(3).trim()
-                                .replace("~", TERMUX_HOME)
-                            val newDir = if (newPath.startsWith("/")) File(newPath)
-                                         else File(workingDir, newPath)
-                            if (newDir.exists() && newDir.isDirectory) {
-                                sessions[sessionIdx] = sessions[sessionIdx].copy(workingDir = newDir.absolutePath)
-                                listOf("📁 ${newDir.absolutePath}")
-                            } else listOf("cd: ${newPath}: No such directory")
-                        }
-                        else -> {
-                            // Run via Termux bash
-                            val pb = ProcessBuilder(TERMUX_BASH, "-c", trimmed)
-                                .directory(File(session.workingDir))
-                                .redirectErrorStream(true)
-                            pb.environment().putAll(getTermuxEnv())
-                            val process = pb.start()
-                            val reader = BufferedReader(InputStreamReader(process.inputStream))
-                            val output = mutableListOf<String>()
-                            var line: String?
-                            while (reader.readLine().also { line = it } != null) {
-                                output.add(line!!)
-                            }
-                            val exitCode = process.waitFor()
-                            if (output.isEmpty()) {
-                                if (exitCode == 0) listOf() else listOf("Exit code: $exitCode")
-                            } else output
-                        }
-                    }
+        if (trimmed.isBlank()) { s.send("\n"); return }
+        histIdx = -1
+        s.lines.add("❯ $trimmed")
+        when {
+            trimmed == "clear" -> s.clear()
+            trimmed.startsWith("cd ") -> {
+                val path = trimmed.substring(3).trim().replace("~", TERMUX_HOME)
+                val dir  = if (path.startsWith("/")) File(path) else File(s.workingDir, path)
+                if (dir.exists() && dir.isDirectory) {
+                    s.workingDir = dir.absolutePath
+                    s.lines.add("📁 ${dir.absolutePath}")
+                    s.send("cd ${dir.absolutePath}\n")
+                } else {
+                    s.lines.add("cd: $path: No such directory")
                 }
-                session.lines.addAll(result)
-            } catch (e: Exception) {
-                session.lines.add("❌ Error: ${e.message}")
             }
-            saveAll()
+            else -> s.sendLine(trimmed)
         }
     }
 
-    fun runCodespaceCommand(cmd: String) {
-        val session = sessions.firstOrNull { it.id == activeId } ?: return
-        session.lines.add("❯ $cmd")
-        session.lines.add("⚠ Codespace SSH not configured. Go to Settings → Codespace to add credentials.")
-        saveAll()
-    }
-
-    // Codespace dialog
+    // Codespace info dialog
     if (showCodespaceDialog) {
         AlertDialog(
             onDismissRequest = { showCodespaceDialog = false },
-            title = { Text("Connect to Codespace") },
+            title = { Text("Codespace Terminal") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Enter your GitHub Codespace SSH details:", fontSize = 13.sp)
-                    OutlinedTextField(
-                        value = csHost,
-                        onValueChange = { csHost = it },
-                        label = { Text("Host (e.g. ssh.github.com)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = csUser,
-                        onValueChange = { csUser = it },
-                        label = { Text("Username") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text("Full SSH support coming soon. Use Local mode with Termux for now.", fontSize = 11.sp, color = Color(0xFF969696))
+                    Text("GitHub Codespace SSH connection is coming soon.", fontSize = 13.sp)
+                    Text("For now, use Local mode — it runs Termux bash with full access to node, python3, git, npm, and all your Termux packages.", fontSize = 13.sp)
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showCodespaceDialog = false }) { Text("OK") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCodespaceDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -318,217 +206,202 @@ fun TerminalPane() {
             Modifier.fillMaxWidth().background(Color(0xFF252526)),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                Modifier.weight(1f).horizontalScroll(rememberScrollState()),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                sessions.forEach { session ->
-                    val isActive = session.id == activeId
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+                tabs.forEach { tab ->
+                    val isActive = tab.id == activeId
                     Row(
                         Modifier
                             .background(if (isActive) Color(0xFF1E1E1E) else Color(0xFF2D2D2D))
-                            .clickable { activeId = session.id; saveAll() }
+                            .clickable { activeId = tab.id }
                             .padding(horizontal = 10.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Icon(
-                            if (session.mode == TerminalMode.LOCAL) Icons.Default.Computer else Icons.Default.Cloud,
+                            if (tab.mode == TerminalMode.LOCAL) Icons.Default.Computer else Icons.Default.Cloud,
                             null,
-                            tint = if (session.mode == TerminalMode.LOCAL) Color(0xFF4EC994) else Color(0xFF89B4FA),
-                            modifier = Modifier.size(12.dp),
+                            tint = if (tab.mode == TerminalMode.LOCAL) Color(0xFF4EC994) else Color(0xFF89B4FA),
+                            modifier = Modifier.size(11.dp),
                         )
-                        Text(
-                            session.name,
-                            color = if (isActive) Color.White else Color(0xFF969696),
+                        Text(tab.name,
+                            color  = if (isActive) Color.White else Color(0xFF969696),
                             fontSize = 12.sp,
-                            fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
-                        )
-                        if (sessions.size > 1) {
+                            fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal)
+                        if (tabs.size > 1) {
                             Icon(Icons.Default.Close, null,
                                 tint = Color(0xFF969696),
-                                modifier = Modifier.size(10.dp).clickable { closeTerminal(session.id) })
+                                modifier = Modifier.size(10.dp).clickable { closeTab(tab.id) })
                         }
                     }
                 }
             }
 
-            // Mode toggle for active session
-            if (activeSession != null) {
+            // Local / Cloud toggle
+            if (active != null) {
                 Row(
                     Modifier.background(Color(0xFF2D2D2D)).padding(horizontal = 6.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    listOf(TerminalMode.LOCAL to "Local", TerminalMode.CODESPACE to "Cloud").forEach { (mode, label) ->
-                        val isSelected = activeSession.mode == mode
+                    listOf(TerminalMode.LOCAL to "Local", TerminalMode.CODESPACE to "Cloud").forEach { (m, label) ->
+                        val sel = active.mode == m
                         Box(
                             Modifier
-                                .background(
-                                    if (isSelected) Color(0xFF007ACC) else Color.Transparent,
-                                    androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
-                                )
+                                .background(if (sel) Color(0xFF007ACC) else Color.Transparent,
+                                    androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
                                 .clickable {
-                                    val idx = sessions.indexOfFirst { it.id == activeId }
-                                    if (idx >= 0) {
-                                        sessions[idx] = sessions[idx].copy(mode = mode)
-                                        if (mode == TerminalMode.CODESPACE) showCodespaceDialog = true
-                                    }
-                                    saveAll()
+                                    active.mode = m
+                                    if (m == TerminalMode.LOCAL && !active.connected) active.start(scope)
+                                    if (m == TerminalMode.CODESPACE) showCodespaceDialog = true
                                 }
-                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
-                            Text(label, fontSize = 11.sp, color = if (isSelected) Color.White else Color(0xFF969696))
+                            Text(label, fontSize = 11.sp, color = if (sel) Color.White else Color(0xFF969696))
                         }
                     }
                 }
             }
 
-            IconButton(onClick = { addTerminal() }, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = { newTab() }, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.Add, null, tint = Color(0xFF969696), modifier = Modifier.size(16.dp))
             }
             Box {
-                IconButton(onClick = { showTerminalMenu = true }, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Default.MoreVert, null, tint = Color(0xFF969696), modifier = Modifier.size(16.dp))
                 }
-                DropdownMenu(
-                    expanded = showTerminalMenu,
-                    onDismissRequest = { showTerminalMenu = false },
-                    offset = DpOffset(0.dp, 4.dp),
-                    modifier = Modifier.background(Color(0xFF2D2D2D)),
-                ) {
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false },
+                    offset = DpOffset(0.dp, 4.dp), modifier = Modifier.background(Color(0xFF2D2D2D))) {
                     listOf(
-                        "Clear" to { clearTerminal() },
-                        "New Local Terminal" to { addTerminal(TerminalMode.LOCAL) },
-                        "New Codespace Terminal" to { addTerminal(TerminalMode.CODESPACE) },
-                        "Kill Terminal" to { if (sessions.size > 1) closeTerminal(activeId) },
+                        "Clear" to { active?.clear() },
+                        "New Local Terminal" to { newTab(TerminalMode.LOCAL) },
+                        "New Cloud Terminal" to { newTab(TerminalMode.CODESPACE) },
+                        "Kill Terminal" to { if (tabs.size > 1) closeTab(activeId) },
                     ).forEach { (label, action) ->
                         DropdownMenuItem(
                             text = { Text(label, color = Color(0xFFCCCCCC), fontSize = 13.sp) },
-                            onClick = { showTerminalMenu = false; action() },
-                        )
+                            onClick = { showMenu = false; action() })
                     }
                 }
             }
         }
 
-        // ── Mode banner ───────────────────────────────────────────────────────
-        if (activeSession != null) {
+        // ── Status banner ─────────────────────────────────────────────────────
+        if (active != null) {
             Row(
                 Modifier.fillMaxWidth()
-                    .background(if (isLocalMode) Color(0xFF0D1B0D) else Color(0xFF0D0D1B))
+                    .background(if (active.mode == TerminalMode.LOCAL) Color(0xFF0D1B0D) else Color(0xFF0D0D1B))
                     .padding(horizontal = 12.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Icon(
-                    if (isLocalMode) Icons.Default.Computer else Icons.Default.Cloud,
+                    if (active.mode == TerminalMode.LOCAL) Icons.Default.Computer else Icons.Default.Cloud,
                     null,
-                    tint = if (isLocalMode) Color(0xFF4EC994) else Color(0xFF89B4FA),
-                    modifier = Modifier.size(12.dp),
+                    tint = if (active.mode == TerminalMode.LOCAL) Color(0xFF4EC994) else Color(0xFF89B4FA),
+                    modifier = Modifier.size(11.dp),
                 )
                 Text(
-                    if (isLocalMode) "Local • Termux • ${activeSession.workingDir.replace(TERMUX_HOME, "~")}"
+                    if (active.mode == TerminalMode.LOCAL)
+                        "Local • ${active.workingDir.replace(TERMUX_HOME, "~")} • ${if (active.connected) "connected" else "disconnected"}"
                     else "Codespace • Not connected",
                     fontSize = 11.sp,
-                    color = if (isLocalMode) Color(0xFF4EC994) else Color(0xFF89B4FA),
+                    color = if (active.mode == TerminalMode.LOCAL) Color(0xFF4EC994) else Color(0xFF89B4FA),
                     fontFamily = FontFamily.Monospace,
                 )
             }
         }
 
-        // ── Output + Input ────────────────────────────────────────────────────
-        if (activeSession != null) {
+        // ── Output ────────────────────────────────────────────────────────────
+        if (active != null) {
             Column(
                 Modifier.fillMaxSize()
                     .clickable(indication = null, interactionSource = remember {
                         androidx.compose.foundation.interaction.MutableInteractionSource()
-                    }) {
-                        focusRequester.requestFocus()
-                        keyboardController?.show()
-                    }
+                    }) { focusRequester.requestFocus(); keyboardController?.show() }
             ) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                 ) {
-                    items(activeSession.lines) { line ->
+                    items(active.lines) { line ->
                         Text(
                             line,
                             color = when {
                                 line.startsWith("❯") -> Color(0xFF89B4FA)
-                                line.startsWith("❌") || line.startsWith("Error") -> Color(0xFFF38BA8)
-                                line.startsWith("📁") || line.startsWith("->") -> Color(0xFFA6E3A1)
+                                line.startsWith("❌") || line.lowercase().contains("error") -> Color(0xFFF38BA8)
+                                line.startsWith("📁") -> Color(0xFFA6E3A1)
                                 line.startsWith("⚠") -> Color(0xFFF9E2AF)
-                                line.startsWith("🖥") || line.startsWith("☁") -> Color(0xFF89DCEB)
+                                line.startsWith("🖥") -> Color(0xFF89DCEB)
                                 else -> Color(0xFFCDD6F4)
                             },
                             fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp,
-                            modifier = Modifier.padding(vertical = 1.dp),
+                            fontSize   = 13.sp,
+                            modifier   = Modifier.padding(vertical = 1.dp),
                         )
                     }
                 }
 
-                // Input row
+                // ── Input row ────────────────────────────────────────────────
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .background(Color(0xFF252526))
                         .clickable(indication = null, interactionSource = remember {
                             androidx.compose.foundation.interaction.MutableInteractionSource()
-                        }) {
-                            focusRequester.requestFocus()
-                            keyboardController?.show()
-                        }
+                        }) { focusRequester.requestFocus(); keyboardController?.show() }
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // Prompt
-                    Text(
-                        if (isLocalMode) "❯ " else "☁ ",
-                        color = if (isLocalMode) Color(0xFF4EC994) else Color(0xFF89B4FA),
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 14.sp,
-                    )
+                    Text(if (active.mode == TerminalMode.LOCAL) "❯ " else "☁ ",
+                        color = if (active.mode == TerminalMode.LOCAL) Color(0xFF4EC994) else Color(0xFF89B4FA),
+                        fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+
                     BasicTextField(
                         value = input,
-                        onValueChange = { newValue ->
-                            if (newValue.endsWith("\n")) {
-                                val cmd = newValue.trimEnd('\n')
-                                if (isLocalMode) runLocalCommand(cmd) else runCodespaceCommand(cmd)
+                        onValueChange = { v ->
+                            if (v.endsWith("\n")) {
+                                sendCmd(v.trimEnd('\n'))
                                 input = ""
-                                historyIdx = -1
-                            } else {
-                                input = newValue
-                            }
+                                histIdx = -1
+                            } else input = v
                         },
                         modifier = Modifier.weight(1f).focusRequester(focusRequester),
-                        textStyle = TextStyle(
-                            color = Color(0xFFCDD6F4),
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp,
-                            lineHeight = 20.sp,
-                        ),
+                        textStyle = TextStyle(color = Color(0xFFCDD6F4), fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp, lineHeight = 20.sp),
                         cursorBrush = SolidColor(Color(0xFF89B4FA)),
                         maxLines = 6,
                     )
-                    // History up/down
-                    Column {
-                        Text("▲", color = Color(0xFF969696), fontSize = 12.sp,
+
+                    // History arrows
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("▲", color = Color(0xFF969696), fontSize = 14.sp,
                             modifier = Modifier.clickable {
-                                val hist = activeSession.commandHistory
-                                if (hist.isNotEmpty()) {
-                                    historyIdx = (historyIdx + 1).coerceAtMost(hist.size - 1)
-                                    input = hist[historyIdx]
+                                val h = active.history
+                                if (h.isNotEmpty()) {
+                                    histIdx = (histIdx + 1).coerceAtMost(h.size - 1)
+                                    input = h[histIdx]
                                 }
-                            }.padding(4.dp))
-                        Text("▼", color = Color(0xFF969696), fontSize = 12.sp,
+                            }.padding(horizontal = 6.dp, vertical = 2.dp))
+                        Text("▼", color = Color(0xFF969696), fontSize = 14.sp,
                             modifier = Modifier.clickable {
-                                historyIdx = (historyIdx - 1)
-                                input = if (historyIdx < 0) { historyIdx = -1; "" }
-                                        else activeSession.commandHistory.getOrElse(historyIdx) { "" }
-                            }.padding(4.dp))
+                                histIdx--
+                                input = if (histIdx < 0) { histIdx = -1; "" }
+                                        else active.history.getOrElse(histIdx) { "" }
+                            }.padding(horizontal = 6.dp, vertical = 2.dp))
+                    }
+
+                    // Special keys
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf("Tab" to "\t", "Ctrl+C" to "\u0003", "↑" to "\u001B[A", "↓" to "\u001B[B").forEach { (label, seq) ->
+                            Box(
+                                Modifier
+                                    .background(Color(0xFF3A3A3A), androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
+                                    .clickable { active.send(seq) }
+                                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                            ) {
+                                Text(label, color = Color(0xFFCDD6F4), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                            }
+                        }
                     }
                 }
             }
