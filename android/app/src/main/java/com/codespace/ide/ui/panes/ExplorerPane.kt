@@ -28,6 +28,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
+import android.content.ClipboardManager
+import android.content.ClipData
 import java.io.File
 
 private val BgColor      = Color(0xFFFFFFFF)

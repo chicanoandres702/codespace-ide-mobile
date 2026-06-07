@@ -153,6 +153,9 @@ dependencies {
     // WorkManager (sync, backups)
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
+    // DocumentFile for SAF folder picker
+    implementation("androidx.documentfile:documentfile:1.0.1")
+
     // Security (Keystore-backed encrypted storage)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
