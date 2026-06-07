@@ -504,6 +504,7 @@ fun ProjectShellScreen(
                                 onOpenFile = { path ->
                                     if (!editorTabs.contains(path)) editorTabs.add(path)
                                     activeEditorTab = path
+                                    activePanel = null
                                     showNotification("Opened ${path.substringAfterLast("/")}", "success")
                                 },
                                 onMoreMenu = { showExplorerMore = true },
