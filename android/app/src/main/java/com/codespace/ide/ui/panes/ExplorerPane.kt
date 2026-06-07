@@ -105,7 +105,7 @@ fun ExplorerSidePanel(
                     if (type == "primary") "/storage/emulated/0/$rel"
                     else "/storage/$type/$rel"
                 } else null
-            } ?: docFile?.name?.let { "/storage/emulated/0/$it" }
+            } ?: docFile?.name?.let { name -> "/storage/emulated/0/$name" }
 
             realPath?.let {
                 workspacePath = it
