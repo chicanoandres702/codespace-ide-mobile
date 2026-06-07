@@ -14,7 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Computer
-import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.WbCloudy
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -218,7 +218,7 @@ fun TerminalPane() {
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Icon(
-                            if (tab.mode == TerminalMode.LOCAL) Icons.Default.Computer else Icons.Default.Cloud,
+                            if (tab.mode == TerminalMode.LOCAL) Icons.Default.Computer else Icons.Default.WbCloudy,
                             null,
                             tint = if (tab.mode == TerminalMode.LOCAL) Color(0xFF4EC994) else Color(0xFF89B4FA),
                             modifier = Modifier.size(11.dp),
@@ -295,7 +295,7 @@ fun TerminalPane() {
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Icon(
-                    if (active.mode == TerminalMode.LOCAL) Icons.Default.Computer else Icons.Default.Cloud,
+                    if (active.mode == TerminalMode.LOCAL) Icons.Default.Computer else Icons.Default.WbCloudy,
                     null,
                     tint = if (active.mode == TerminalMode.LOCAL) Color(0xFF4EC994) else Color(0xFF89B4FA),
                     modifier = Modifier.size(11.dp),
