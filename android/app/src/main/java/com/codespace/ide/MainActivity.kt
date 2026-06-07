@@ -9,7 +9,6 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
@@ -27,27 +26,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        requestStoragePermissions()
-        setContent {
-            CodeSpaceApp(tokenStore = tokenStore)
-        }
-    }
-
-    private fun requestStoragePermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+ needs MANAGE_EXTERNAL_STORAGE via Settings
-            if (!Environment.isExternalStorageManager()) {
-                try {
-                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                    intent.data = Uri.parse("package:$packageName")
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    startActivity(intent)
-                }
-            }
-        } else {
-            // Android 10 and below
+        // Only request basic storage, not MANAGE_EXTERNAL_STORAGE
+        // to avoid Play Protect warnings
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             val permissions = arrayOf(
                 android.Manifest.permission.READ_EXTERNAL_STORAGE,
                 android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
@@ -58,6 +39,9 @@ class MainActivity : ComponentActivity() {
             if (notGranted.isNotEmpty()) {
                 ActivityCompat.requestPermissions(this, notGranted.toTypedArray(), 1001)
             }
+        }
+        setContent {
+            CodeSpaceApp(tokenStore = tokenStore)
         }
     }
 }
