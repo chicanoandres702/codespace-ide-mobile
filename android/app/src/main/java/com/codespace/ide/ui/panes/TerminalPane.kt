@@ -48,9 +48,9 @@ enum class TerminalMode { LOCAL, CODESPACE }
 private class LiveSession(val id: String, val name: String, mode: TerminalMode) {
     val lines   = mutableStateListOf<String>()
     val history = mutableListOf<String>()
-    var workingDir by mutableStateOf(TERMUX_HOME)
-    var mode by mutableStateOf(mode)
-    var connected by mutableStateOf(false)
+    var workingDir = TERMUX_HOME
+    var mode = mode
+    var connected = false
 
     // Underlying shell
     private var session: TerminalSession? = null
