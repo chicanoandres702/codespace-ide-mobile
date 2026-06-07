@@ -163,9 +163,6 @@ dependencies {
     // SSH / SFTP
     implementation("com.hierynomus:sshj:0.38.0")
 
-    // PTY — real interactive terminal
-    implementation("com.github.jackpal:Android-Terminal-Emulator:1.0.70")
-
     // Tests
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")

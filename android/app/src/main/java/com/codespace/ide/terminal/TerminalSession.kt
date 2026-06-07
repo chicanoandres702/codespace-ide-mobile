@@ -32,17 +32,7 @@ class TerminalSession(
         val pb = ProcessBuilder(shell)
             .directory(java.io.File(workingDir))
             .redirectErrorStream(true)
-        val prefix = "/data/data/com.termux/files/usr"
-        pb.environment().apply {
-            put("PREFIX", prefix)
-            put("HOME", "/data/data/com.termux/files/home")
-            put("TMPDIR", "$prefix/tmp")
-            put("LANG", "en_US.UTF-8")
-            put("TERM", "xterm-256color")
-            put("PATH", "$prefix/bin:$prefix/bin/applets:/system/bin:/system/xbin")
-            put("LD_LIBRARY_PATH", "$prefix/lib")
-            put("SHELL", shell)
-        }
+        pb.environment()["TERM"] = "xterm-256color"
         val proc = pb.start().also { process = it }
         writer = OutputStreamWriter(proc.outputStream)
 
